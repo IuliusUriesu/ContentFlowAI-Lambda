@@ -1,12 +1,22 @@
 {
-  "name": "content_flow_ai-lambda",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "rm -rf dist && tsc"
-  },
-  "devDependencies": {
-    "@types/node": "^22.13.9",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.2"
-  }
+    "name": "content_flow_ai-lambda",
+    "version": "1.0.0",
+    "scripts": {
+        "build": "rm -rf dist && tsc",
+        "lint": "eslint **/*.ts --ignore-pattern **/*.d.ts --fix && prettier --write **/*.ts"
+    },
+    "devDependencies": {
+        "@eslint/eslintrc": "^3.3.0",
+        "@eslint/js": "^9.22.0",
+        "@types/node": "22.7.9",
+        "@typescript-eslint/eslint-plugin": "^8.26.0",
+        "@typescript-eslint/parser": "^8.26.0",
+        "eslint": "^9.22.0",
+        "eslint-config-prettier": "^10.1.1",
+        "eslint-plugin-prettier": "^5.2.3",
+        "globals": "^16.0.0",
+        "prettier": "^3.5.3",
+        "ts-node": "^10.9.2",
+        "typescript": "~5.6.3"
+    }
 }
