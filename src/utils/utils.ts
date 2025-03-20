@@ -30,7 +30,7 @@ export const getAppDataTableNameEnvVariable = (): string => {
     return process.env.APP_DATA_TABLE_NAME;
 };
 
-const getAnthropicApiKeySecretName = (): string => {
+export const getAnthropicApiKeySecretNameEnvVariable = (): string => {
     if (!process.env.ANTHROPIC_API_KEY_SECRET_NAME) {
         throw new DevelopmentError("Missing environment variable ANTHROPIC_API_KEY_SECRET_NAME.");
     }
@@ -39,7 +39,7 @@ const getAnthropicApiKeySecretName = (): string => {
 
 export const getAnthropicApiKey = async (): Promise<string> => {
     const client = new SecretsManagerClient();
-    const secretName = getAnthropicApiKeySecretName();
+    const secretName = getAnthropicApiKeySecretNameEnvVariable();
     const command = new GetSecretValueCommand({
         SecretId: secretName,
     });
@@ -64,3 +64,4 @@ export interface ExistingContentPiece {
 
 export class DevelopmentError extends Error {}
 export class BadRequestError extends Error {}
+export class DynamoDbError extends Error {}

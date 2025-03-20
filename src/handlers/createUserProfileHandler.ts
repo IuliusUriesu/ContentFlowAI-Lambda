@@ -22,35 +22,34 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     try {
         body = JSON.parse(event.body);
     } catch (error) {
-        console.log(error);
         return errorResponse(400, "Request body is invalid JSON.");
     }
 
     try {
-        validateBrandDetails(body);
+        validateRequestBody(body);
     } catch (error) {
-        return errorResponse(400, (error as BadRequestError).message);
+        return errorResponse(400, (error as Error).message);
     }
 
+    const createUserProfilePromise = dynamoDbService.createUserProfile(
+        sub,
+        fullName,
+        body.brandThemes,
+        body.toneOfVoice,
+        body.targetAudience,
+        body.contentGoals,
+    );
+
+    const existingContent = extractExistingContent(body);
+    const createExistingContentPiecesPromise = dynamoDbService.createExistingContentPieces(sub, existingContent);
+
     try {
-        const profileResponsePromise = dynamoDbService.createUserProfile(
-            sub,
-            fullName,
-            body.brandThemes,
-            body.toneOfVoice,
-            body.targetAudience,
-            body.contentGoals,
-        );
-
-        const existingContent = extractExistingContent(body);
-        const existingContentResponsePromise = dynamoDbService.createExistingContentPieces(sub, existingContent);
-
-        const profileResponse = await profileResponsePromise;
-        const existingContentResponse = await existingContentResponsePromise;
+        const userProfile = await createUserProfilePromise;
+        const existingContentPieces = await createExistingContentPiecesPromise;
 
         const responseBody = {
-            profileResponse,
-            existingContentResponse,
+            profile: userProfile,
+            existingContent: existingContentPieces,
         };
 
         return successResponse(201, responseBody);
@@ -60,7 +59,7 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 };
 
-const validateBrandDetails = (body: any) => {
+const validateRequestBody = (body: any) => {
     const { brandThemes, toneOfVoice, targetAudience, contentGoals, existingContent } = body;
 
     if (!brandThemes || typeof brandThemes !== "string") {

@@ -1,6 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { ExistingContentPiece, getAppDataTableNameEnvVariable } from "../utils/utils";
+import { DynamoDbError, ExistingContentPiece, getAppDataTableNameEnvVariable } from "../utils/utils";
 import { v4 as uuidv4 } from "uuid";
 
 class DynamoDbService {
@@ -22,33 +22,42 @@ class DynamoDbService {
         targetAudience: string,
         contentGoals: string,
     ) => {
+        const userProfileItem = {
+            PK: `u#${userId}`,
+            SK: "profile",
+            fullName,
+            brandThemes,
+            toneOfVoice,
+            targetAudience,
+            contentGoals,
+        };
+
         const command = new PutCommand({
             TableName: this.appDataTableName,
-            Item: {
-                PK: `u#${userId}`,
-                SK: "profile",
-                fullName,
-                brandThemes,
-                toneOfVoice,
-                targetAudience,
-                contentGoals,
-            },
+            Item: userProfileItem,
         });
 
-        const response = await this.docClient.send(command);
-        return response;
+        try {
+            await this.docClient.send(command);
+            return userProfileItem;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to create user profile.");
+        }
     };
 
     createExistingContentPieces = async (userId: string, existingContent: ExistingContentPiece[]) => {
         if (existingContent.length === 0) return;
 
-        const putRequests = existingContent.map((piece) => ({
+        const existingContentItems = existingContent.map((piece) => ({
+            PK: `u#${userId}#posted`,
+            SK: `f#${piece.format}#ec#${uuidv4()}`,
+            content: piece.content,
+        }));
+
+        const putRequests = existingContentItems.map((item) => ({
             PutRequest: {
-                Item: {
-                    PK: `u#${userId}#posted`,
-                    SK: `f#${piece.format}#ec#${uuidv4()}`,
-                    content: piece.content,
-                },
+                Item: item,
             },
         }));
 
@@ -58,8 +67,13 @@ class DynamoDbService {
             },
         });
 
-        const response = await this.docClient.send(command);
-        return response;
+        try {
+            await this.docClient.send(command);
+            return existingContentItems;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to create existing content pieces");
+        }
     };
 }
 
