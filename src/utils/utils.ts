@@ -23,7 +23,7 @@ export const errorResponse = (statusCode: number, errorMessage: string): APIGate
     };
 };
 
-export const getAppDataTableName = (): string => {
+export const getAppDataTableNameEnvVariable = (): string => {
     if (!process.env.APP_DATA_TABLE_NAME) {
         throw new DevelopmentError("Missing environment variable APP_DATA_TABLE_NAME.");
     }
@@ -56,6 +56,11 @@ export const getAnthropicApiKey = async (): Promise<string> => {
     }
     return secretObject.ANTHROPIC_API_KEY;
 };
+
+export interface ExistingContentPiece {
+    format: string;
+    content: string;
+}
 
 export class DevelopmentError extends Error {}
 export class BadRequestError extends Error {}

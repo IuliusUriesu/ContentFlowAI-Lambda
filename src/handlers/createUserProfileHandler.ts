@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { BadRequestError, errorResponse, successResponse } from "../utils/utils";
-import updateBrandDetailsDb from "../data-access/updateBrandDetailsDb";
+import { BadRequestError, errorResponse, ExistingContentPiece, successResponse } from "../utils/utils";
+import dynamoDbService from "../data-access";
 
 const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -15,18 +15,25 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 
     if (!event.body) {
-        return errorResponse(400, "Empty error body.");
+        return errorResponse(400, "Request body is empty.");
     }
 
-    const body = JSON.parse(event.body);
+    let body;
     try {
-        validateRequestBody(body);
+        body = JSON.parse(event.body);
+    } catch (error) {
+        console.log(error);
+        return errorResponse(400, "Request body is invalid JSON.");
+    }
+
+    try {
+        validateBrandDetails(body);
     } catch (error) {
         return errorResponse(400, (error as BadRequestError).message);
     }
 
     try {
-        const response = await updateBrandDetailsDb(
+        const profileResponsePromise = dynamoDbService.createUserProfile(
             sub,
             fullName,
             body.brandThemes,
@@ -34,31 +41,60 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
             body.targetAudience,
             body.contentGoals,
         );
-        return successResponse(200, response);
+
+        const existingContent = extractExistingContent(body);
+        const existingContentResponsePromise = dynamoDbService.createExistingContentPieces(sub, existingContent);
+
+        const profileResponse = await profileResponsePromise;
+        const existingContentResponse = await existingContentResponsePromise;
+
+        const responseBody = {
+            profileResponse,
+            existingContentResponse,
+        };
+
+        return successResponse(201, responseBody);
     } catch (error) {
         console.log(error);
-        return errorResponse(500, "Internal Server Error");
+        return errorResponse(500, "Internal server error");
     }
 };
 
-const validateRequestBody = (body: any) => {
-    const { brandThemes, toneOfVoice, targetAudience, contentGoals } = body;
+const validateBrandDetails = (body: any) => {
+    const { brandThemes, toneOfVoice, targetAudience, contentGoals, existingContent } = body;
 
     if (!brandThemes || typeof brandThemes !== "string") {
-        throw new BadRequestError("'brandThemes' is required and must be a string.");
+        throw new BadRequestError("Required field 'brandThemes' is missing or invalid.");
     }
 
     if (!toneOfVoice || typeof toneOfVoice !== "string") {
-        throw new BadRequestError("'toneOfVoice' is required and must be a string.");
+        throw new BadRequestError("Required field 'toneOfVoice' is missing or invalid.");
     }
 
     if (!targetAudience || typeof targetAudience !== "string") {
-        throw new BadRequestError("'targetAudience' is required and must be a string.");
+        throw new BadRequestError("Required field 'targetAudience' is missing or invalid.");
     }
 
     if (!contentGoals || typeof contentGoals !== "string") {
-        throw new BadRequestError("'contentGoals' is required and must be a string.");
+        throw new BadRequestError("Required field 'contentGoals' is missing or invalid.");
     }
+};
+
+const extractExistingContent = (body: any): ExistingContentPiece[] => {
+    const existingContent = body.existingContent;
+    if (!existingContent) return [];
+    if (!Array.isArray(existingContent)) return [];
+
+    const existingContentPieces: ExistingContentPiece[] = [];
+    for (let i = 0; i < existingContent.length; i++) {
+        const piece = existingContent[i];
+        const { format, content } = piece;
+        if (format && content && typeof format === "string" && typeof content === "string") {
+            existingContentPieces.push({ format, content });
+        }
+    }
+
+    return existingContentPieces;
 };
 
 export default createUserProfileHandler;
