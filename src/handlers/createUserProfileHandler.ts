@@ -1,8 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { BadRequestError, errorResponse, successResponse } from "../utils/utils";
-import updateBrandDetailsDb from "../data_access/updateBrandDetailsDb";
+import updateBrandDetailsDb from "../data-access/updateBrandDetailsDb";
 
-const updateBrandDetailsHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
     const fullName = event.requestContext.authorizer?.claims.name;
 
@@ -61,4 +61,4 @@ const validateRequestBody = (body: any) => {
     }
 };
 
-export default updateBrandDetailsHandler;
+export default createUserProfileHandler;

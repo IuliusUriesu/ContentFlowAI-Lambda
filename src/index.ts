@@ -1,5 +1,5 @@
 import defaultFunctionHandler from "./handlers/defaultFunctionHandler";
-import updateBrandDetailsHandler from "./handlers/updateBrandDetailsHandler";
+import createUserProfileHandler from "./handlers/createUserProfileHandler";
 
 exports.defaultFunctionHandler = defaultFunctionHandler;
-exports.updateBrandDetailsHandler = updateBrandDetailsHandler;
+exports.createUserProfileHandler = createUserProfileHandler;
