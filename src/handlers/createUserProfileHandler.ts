@@ -1,6 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { BadRequestError, errorResponse, ExistingContentPiece, successResponse } from "../utils/utils";
 import dynamoDbService from "../data-access";
+import anthropicApiService from "../anthropic-api";
 
 const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;

@@ -37,26 +37,6 @@ export const getAnthropicApiKeySecretNameEnvVariable = (): string => {
     return process.env.ANTHROPIC_API_KEY_SECRET_NAME;
 };
 
-export const getAnthropicApiKey = async (): Promise<string> => {
-    const client = new SecretsManagerClient();
-    const secretName = getAnthropicApiKeySecretNameEnvVariable();
-    const command = new GetSecretValueCommand({
-        SecretId: secretName,
-    });
-
-    const response = await client.send(command);
-    const secretJson = response.SecretString;
-    if (!secretJson) {
-        throw new DevelopmentError("Missing or invalid Anthropic API Key secret.");
-    }
-
-    const secretObject = JSON.parse(secretJson);
-    if (!secretObject.ANTHROPIC_API_KEY || typeof secretObject.ANTHROPIC_API_KEY !== "string") {
-        throw new DevelopmentError("Missing or invalid secret key ANTHROPIC_API_KEY.");
-    }
-    return secretObject.ANTHROPIC_API_KEY;
-};
-
 export interface ExistingContentPiece {
     format: string;
     content: string;
