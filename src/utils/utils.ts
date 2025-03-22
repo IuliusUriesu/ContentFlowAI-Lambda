@@ -30,6 +30,19 @@ export const getEnvVariable = (variableName: string): string => {
     return process.env[variableName];
 };
 
+export interface BrandDetails {
+    brandThemes: string;
+    toneOfVoice: string;
+    contentGoals: string;
+    targetAudience: string;
+}
+
+export interface ExistingContentPiece {
+    format: string;
+    content: string;
+}
+
 export class DevelopmentError extends Error {}
 export class BadRequestError extends Error {}
 export class DynamoDbError extends Error {}
+export class SqsError extends Error {}

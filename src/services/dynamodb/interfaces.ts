@@ -1,18 +1,12 @@
+import { BrandDetails, ExistingContentPiece } from "../../utils/utils";
+
 export interface DynamoDbCreateUserProfileInput {
     userId: string;
     fullName: string;
-    brandThemes: string;
-    toneOfVoice: string;
-    targetAudience: string;
-    contentGoals: string;
+    brandDetails: BrandDetails;
 }
 
 export interface DynamoDbCreateExistingContentPiecesInput {
     userId: string;
     existingContent: ExistingContentPiece[];
-}
-
-export interface ExistingContentPiece {
-    format: string;
-    content: string;
 }

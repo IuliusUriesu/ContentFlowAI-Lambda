@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { BadRequestError, errorResponse, successResponse } from "../utils/utils";
+import { BadRequestError, BrandDetails, errorResponse, ExistingContentPiece, successResponse } from "../utils/utils";
 import DynamoDbService from "../services/dynamodb/DynamoDbService";
-import { ExistingContentPiece } from "../services/dynamodb/interfaces";
+import SqsService from "../services/sqs/SqsService";
 
 const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -26,32 +26,37 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
         return errorResponse(400, "Request body is invalid JSON.");
     }
 
+    let brandDetails: BrandDetails;
     try {
-        validateRequestBody(body);
+        brandDetails = extractBrandDetails(body);
     } catch (error) {
         return errorResponse(400, (error as Error).message);
     }
 
+    const existingContent = extractExistingContent(body);
+
     const dynamoDbService = new DynamoDbService();
+    const sqsService = new SqsService();
 
     const createUserProfilePromise = dynamoDbService.createUserProfile({
         userId: sub,
         fullName,
-        brandThemes: body.brandThemes,
-        toneOfVoice: body.toneOfVoice,
-        targetAudience: body.targetAudience,
-        contentGoals: body.contentGoals,
+        brandDetails,
     });
 
-    const existingContent = extractExistingContent(body);
     const createExistingContentPiecesPromise = dynamoDbService.createExistingContentPieces({
         userId: sub,
         existingContent,
     });
 
+    const sendUserProfileMessagePromise = sqsService.sendUserProfileMessage({
+        message: { brandDetails, existingContent },
+    });
+
     try {
         const userProfile = await createUserProfilePromise;
         const existingContentPieces = await createExistingContentPiecesPromise;
+        await sendUserProfileMessagePromise;
 
         const responseBody = {
             profile: userProfile,
@@ -65,8 +70,8 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
     }
 };
 
-const validateRequestBody = (body: any) => {
-    const { brandThemes, toneOfVoice, targetAudience, contentGoals, existingContent } = body;
+const extractBrandDetails = (body: any): BrandDetails => {
+    const { brandThemes, toneOfVoice, targetAudience, contentGoals } = body;
 
     if (!brandThemes || typeof brandThemes !== "string") {
         throw new BadRequestError("Required field 'brandThemes' is missing or invalid.");
@@ -83,6 +88,8 @@ const validateRequestBody = (body: any) => {
     if (!contentGoals || typeof contentGoals !== "string") {
         throw new BadRequestError("Required field 'contentGoals' is missing or invalid.");
     }
+
+    return { brandThemes, toneOfVoice, targetAudience, contentGoals };
 };
 
 const extractExistingContent = (body: any): ExistingContentPiece[] => {

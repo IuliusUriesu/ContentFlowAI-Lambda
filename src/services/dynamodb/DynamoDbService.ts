@@ -16,7 +16,8 @@ class DynamoDbService {
     }
 
     createUserProfile = async (input: DynamoDbCreateUserProfileInput) => {
-        const { userId, fullName, brandThemes, toneOfVoice, targetAudience, contentGoals } = input;
+        const { userId, fullName } = input;
+        const { brandThemes, toneOfVoice, targetAudience, contentGoals } = input.brandDetails;
 
         const userProfileItem = {
             PK: `u#${userId}`,
@@ -70,7 +71,7 @@ class DynamoDbService {
             return existingContentItems;
         } catch (error) {
             console.log(error);
-            throw new DynamoDbError("Failed to create existing content pieces");
+            throw new DynamoDbError("Failed to create existing content pieces.");
         }
     };
 }
