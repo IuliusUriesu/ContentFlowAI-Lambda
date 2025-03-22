@@ -1,6 +1,7 @@
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import { DevelopmentError, getAnthropicApiKeySecretNameEnvVariable } from "../utils/utils";
+import { DevelopmentError, getEnvVariable } from "../../utils/utils";
 import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicApiGetClaudeResponseInput } from "./interfaces";
 
 class AnthropicApiService {
     private anthropicClientPromise: Promise<Anthropic>;
@@ -9,7 +10,9 @@ class AnthropicApiService {
         this.anthropicClientPromise = this.createAnthropicClient();
     }
 
-    getClaudeResponse = async (prompt: string): Promise<string> => {
+    getClaudeResponse = async (input: AnthropicApiGetClaudeResponseInput): Promise<string> => {
+        const { prompt } = input;
+
         const anthropic = await this.anthropicClientPromise;
 
         const response = await anthropic.messages.create({
@@ -32,7 +35,7 @@ class AnthropicApiService {
 
     private getAnthropicApiKey = async (): Promise<string> => {
         const client = new SecretsManagerClient();
-        const secretName = getAnthropicApiKeySecretNameEnvVariable();
+        const secretName = getEnvVariable("ANTHROPIC_API_KEY_SECRET_NAME");
         const command = new GetSecretValueCommand({
             SecretId: secretName,
         });

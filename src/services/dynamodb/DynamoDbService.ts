@@ -1,27 +1,23 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { DynamoDbError, ExistingContentPiece, getAppDataTableNameEnvVariable } from "../utils/utils";
+import { DynamoDbError, getEnvVariable } from "../../utils/utils";
 import { v4 as uuidv4 } from "uuid";
+import { DynamoDbCreateExistingContentPiecesInput, DynamoDbCreateUserProfileInput } from "./interfaces";
 
 class DynamoDbService {
     private docClient: DynamoDBDocumentClient;
     private appDataTableName: string;
 
     constructor() {
-        const client = new DynamoDBClient({});
+        const awsRegion = getEnvVariable("AWS_REGION");
+        const client = new DynamoDBClient({ region: awsRegion });
         this.docClient = DynamoDBDocumentClient.from(client);
-
-        this.appDataTableName = getAppDataTableNameEnvVariable();
+        this.appDataTableName = getEnvVariable("APP_DATA_TABLE_NAME");
     }
 
-    createUserProfile = async (
-        userId: string,
-        fullName: string,
-        brandThemes: string,
-        toneOfVoice: string,
-        targetAudience: string,
-        contentGoals: string,
-    ) => {
+    createUserProfile = async (input: DynamoDbCreateUserProfileInput) => {
+        const { userId, fullName, brandThemes, toneOfVoice, targetAudience, contentGoals } = input;
+
         const userProfileItem = {
             PK: `u#${userId}`,
             SK: "profile",
@@ -46,7 +42,9 @@ class DynamoDbService {
         }
     };
 
-    createExistingContentPieces = async (userId: string, existingContent: ExistingContentPiece[]) => {
+    createExistingContentPieces = async (input: DynamoDbCreateExistingContentPiecesInput) => {
+        const { userId, existingContent } = input;
+
         if (existingContent.length === 0) return;
 
         const existingContentItems = existingContent.map((piece) => ({

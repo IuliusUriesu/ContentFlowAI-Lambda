@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { BadRequestError, errorResponse, ExistingContentPiece, successResponse } from "../utils/utils";
-import dynamoDbService from "../data-access";
-import anthropicApiService from "../anthropic-api";
+import { BadRequestError, errorResponse, successResponse } from "../utils/utils";
+import DynamoDbService from "../services/dynamodb/DynamoDbService";
+import { ExistingContentPiece } from "../services/dynamodb/interfaces";
 
 const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -32,17 +32,22 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
         return errorResponse(400, (error as Error).message);
     }
 
-    const createUserProfilePromise = dynamoDbService.createUserProfile(
-        sub,
+    const dynamoDbService = new DynamoDbService();
+
+    const createUserProfilePromise = dynamoDbService.createUserProfile({
+        userId: sub,
         fullName,
-        body.brandThemes,
-        body.toneOfVoice,
-        body.targetAudience,
-        body.contentGoals,
-    );
+        brandThemes: body.brandThemes,
+        toneOfVoice: body.toneOfVoice,
+        targetAudience: body.targetAudience,
+        contentGoals: body.contentGoals,
+    });
 
     const existingContent = extractExistingContent(body);
-    const createExistingContentPiecesPromise = dynamoDbService.createExistingContentPieces(sub, existingContent);
+    const createExistingContentPiecesPromise = dynamoDbService.createExistingContentPieces({
+        userId: sub,
+        existingContent,
+    });
 
     try {
         const userProfile = await createUserProfilePromise;
