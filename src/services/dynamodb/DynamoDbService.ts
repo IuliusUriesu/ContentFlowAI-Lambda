@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { DynamoDbError, getEnvVariable } from "../../utils/utils";
 import { v4 as uuidv4 } from "uuid";
-import { DynamoDbCreateExistingContentPiecesInput, DynamoDbCreateUserProfileInput } from "./interfaces";
+import { DynamoDbCreateExistingContentPiecesInput, DynamoDbCreateUserProfileInput } from "./types";
 
 class DynamoDbService {
     private docClient: DynamoDBDocumentClient;

@@ -1,4 +1,5 @@
-import { BrandDetails, ExistingContentPiece } from "../../utils/utils";
+import { BrandDetails } from "../../models/BrandDetails";
+import { ExistingContentPiece } from "../../models/ExistingContentPiece";
 
 export interface DynamoDbCreateUserProfileInput {
     userId: string;

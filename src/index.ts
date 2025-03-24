@@ -1,5 +1,6 @@
-import defaultFunctionHandler from "./handlers/defaultFunctionHandler";
-import createUserProfileHandler from "./handlers/createUserProfileHandler";
+import defaultFunction from "./handlers/api/defaultFunction";
+import createUserProfile from "./handlers/api/createUserProfile";
 
-exports.defaultFunctionHandler = defaultFunctionHandler;
-exports.createUserProfileHandler = createUserProfileHandler;
+// API Handlers
+exports.defaultFunction = defaultFunction;
+exports.createUserProfile = createUserProfile;

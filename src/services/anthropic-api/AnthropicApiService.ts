@@ -1,7 +1,7 @@
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { DevelopmentError, getEnvVariable } from "../../utils/utils";
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicApiGetClaudeResponseInput } from "./interfaces";
+import { AnthropicApiGetClaudeResponseInput } from "./types";
 
 class AnthropicApiService {
     private anthropicClientPromise: Promise<Anthropic>;

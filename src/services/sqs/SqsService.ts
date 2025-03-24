@@ -1,6 +1,6 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { getEnvVariable, SqsError } from "../../utils/utils";
-import { SqsSendUserProfileMessageInput } from "./interfaces";
+import { SqsSendUserProfileMessageInput } from "./types";
 
 class SqsService {
     private sqsClient: SQSClient;
@@ -21,7 +21,7 @@ class SqsService {
         });
 
         try {
-            const response = await this.sqsClient.send(command);
+            await this.sqsClient.send(command);
         } catch (error) {
             console.log(error);
             throw new SqsError("Failed to send user profile message.");

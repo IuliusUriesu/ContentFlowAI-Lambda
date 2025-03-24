@@ -1,9 +1,13 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { BadRequestError, BrandDetails, errorResponse, ExistingContentPiece, successResponse } from "../utils/utils";
-import DynamoDbService from "../services/dynamodb/DynamoDbService";
-import SqsService from "../services/sqs/SqsService";
+import { BadRequestError } from "../../utils/utils";
+import DynamoDbService from "../../services/dynamodb/DynamoDbService";
+import SqsService from "../../services/sqs/SqsService";
+import { errorResponse } from "../helpers/errorResponse";
+import { successResponse } from "../helpers/successResponse";
+import { BrandDetails } from "../../models/BrandDetails";
+import { ExistingContentPiece } from "../../models/ExistingContentPiece";
 
-const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
     const fullName = event.requestContext.authorizer?.claims.name;
 
@@ -71,7 +75,12 @@ const createUserProfileHandler = async (event: APIGatewayProxyEvent): Promise<AP
 };
 
 const extractBrandDetails = (body: any): BrandDetails => {
-    const { brandThemes, toneOfVoice, targetAudience, contentGoals } = body;
+    const brandDetails = body.brandDetails;
+    if (!brandDetails) {
+        throw new BadRequestError("Brand details are missing.");
+    }
+
+    const { brandThemes, toneOfVoice, targetAudience, contentGoals } = brandDetails;
 
     if (!brandThemes || typeof brandThemes !== "string") {
         throw new BadRequestError("Required field 'brandThemes' is missing or invalid.");
@@ -109,4 +118,4 @@ const extractExistingContent = (body: any): ExistingContentPiece[] => {
     return existingContentPieces;
 };
 
-export default createUserProfileHandler;
+export default createUserProfile;
