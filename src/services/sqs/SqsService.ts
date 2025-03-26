@@ -1,22 +1,22 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { getEnvVariable, SqsError } from "../../utils/utils";
-import { SqsSendUserProfileMessageInput } from "./types";
+import { SqsSendBrandSummaryRequestMessageInput } from "./types";
 
 class SqsService {
     private sqsClient: SQSClient;
-    private userProfileQueueUrl: string;
+    private brandSummaryRequestQueueUrl: string;
 
     constructor() {
         const awsRegion = getEnvVariable("AWS_REGION");
         this.sqsClient = new SQSClient({ region: awsRegion });
-        this.userProfileQueueUrl = getEnvVariable("USER_PROFILE_QUEUE_URL");
+        this.brandSummaryRequestQueueUrl = getEnvVariable("BRAND_SUMMARY_REQUEST_QUEUE_URL");
     }
 
-    sendUserProfileMessage = async (input: SqsSendUserProfileMessageInput) => {
+    sendBrandSummaryRequestMessage = async (input: SqsSendBrandSummaryRequestMessageInput) => {
         const { message } = input;
 
         const command = new SendMessageCommand({
-            QueueUrl: this.userProfileQueueUrl,
+            QueueUrl: this.brandSummaryRequestQueueUrl,
             MessageBody: JSON.stringify(message),
         });
 
@@ -24,7 +24,7 @@ class SqsService {
             await this.sqsClient.send(command);
         } catch (error) {
             console.log(error);
-            throw new SqsError("Failed to send user profile message.");
+            throw new SqsError("Failed to send brand summary request message.");
         }
     };
 }

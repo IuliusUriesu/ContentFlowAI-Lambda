@@ -53,14 +53,14 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         existingContent,
     });
 
-    const sendUserProfileMessagePromise = sqsService.sendUserProfileMessage({
-        message: { brandDetails, existingContent },
+    const sendBrandSummaryRequestMessagePromise = sqsService.sendBrandSummaryRequestMessage({
+        message: { userId: sub, brandDetails, existingContent },
     });
 
     try {
         const userProfile = await createUserProfilePromise;
         const existingContentPieces = await createExistingContentPiecesPromise;
-        await sendUserProfileMessagePromise;
+        await sendBrandSummaryRequestMessagePromise;
 
         const responseBody = {
             profile: userProfile,

@@ -2,13 +2,14 @@ import { z } from "zod";
 import { BrandDetailsSchema } from "../../models/BrandDetails";
 import { ExistingContentPieceSchema } from "../../models/ExistingContentPiece";
 
-export interface SqsSendUserProfileMessageInput {
-    message: SqsUserProfileMessage;
+export interface SqsSendBrandSummaryRequestMessageInput {
+    message: SqsBrandSummaryRequestMessage;
 }
 
-export const SqsUserProfileMessageSchema = z.object({
+export const SqsBrandSummaryRequestMessageSchema = z.object({
+    userId: z.string(),
     brandDetails: BrandDetailsSchema,
     existingContent: z.array(ExistingContentPieceSchema),
 });
 
-export type SqsUserProfileMessage = z.infer<typeof SqsUserProfileMessageSchema>;
+export type SqsBrandSummaryRequestMessage = z.infer<typeof SqsBrandSummaryRequestMessageSchema>;
