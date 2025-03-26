@@ -23,6 +23,9 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         return errorResponse(400, "Request body is empty.");
     }
 
+    const dynamoDbService = new DynamoDbService();
+    const sqsService = new SqsService();
+
     let body;
     try {
         body = JSON.parse(event.body);
@@ -38,9 +41,6 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
     }
 
     const existingContent = extractExistingContent(body);
-
-    const dynamoDbService = new DynamoDbService();
-    const sqsService = new SqsService();
 
     const createUserProfilePromise = dynamoDbService.createUserProfile({
         userId: sub,

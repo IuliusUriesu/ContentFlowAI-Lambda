@@ -11,3 +11,12 @@ export interface DynamoDbCreateExistingContentPiecesInput {
     userId: string;
     existingContent: ExistingContentPiece[];
 }
+
+export interface DynamoDbUpdateBrandSummaryInput {
+    userId: string;
+    brandSummary: string;
+}
+
+export interface DynamoDbGetUserProfileInput {
+    userId: string;
+}

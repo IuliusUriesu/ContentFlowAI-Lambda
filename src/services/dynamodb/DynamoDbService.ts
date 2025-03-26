@@ -1,8 +1,19 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { BatchWriteCommand, DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import {
+    BatchWriteCommand,
+    DynamoDBDocumentClient,
+    GetCommand,
+    PutCommand,
+    UpdateCommand,
+} from "@aws-sdk/lib-dynamodb";
 import { DynamoDbError, getEnvVariable } from "../../utils/utils";
 import { v4 as uuidv4 } from "uuid";
-import { DynamoDbCreateExistingContentPiecesInput, DynamoDbCreateUserProfileInput } from "./types";
+import {
+    DynamoDbCreateExistingContentPiecesInput,
+    DynamoDbCreateUserProfileInput,
+    DynamoDbGetUserProfileInput,
+    DynamoDbUpdateBrandSummaryInput,
+} from "./types";
 
 class DynamoDbService {
     private docClient: DynamoDBDocumentClient;
@@ -72,6 +83,51 @@ class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create existing content pieces.");
+        }
+    };
+
+    updateBrandSummary = async (input: DynamoDbUpdateBrandSummaryInput) => {
+        const { userId, brandSummary } = input;
+
+        const command = new UpdateCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}`,
+                SK: "profile",
+            },
+            UpdateExpression: "SET brandSummary = :brandSummary",
+            ExpressionAttributeValues: {
+                ":brandSummary": brandSummary,
+            },
+            ReturnValues: "UPDATED_NEW",
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Attributes;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to update brand summary.");
+        }
+    };
+
+    getUserProfile = async (input: DynamoDbGetUserProfileInput) => {
+        const { userId } = input;
+
+        const command = new GetCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}`,
+                SK: "profile",
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Item;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve user profile.");
         }
     };
 }
