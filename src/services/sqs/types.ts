@@ -4,6 +4,7 @@ import { ExistingContentPieceSchema } from "../../models/ExistingContentPiece";
 
 export interface SqsSendBrandSummaryRequestMessageInput {
     message: SqsBrandSummaryRequestMessage;
+    queueUrl: string;
 }
 
 export const SqsBrandSummaryRequestMessageSchema = z.object({

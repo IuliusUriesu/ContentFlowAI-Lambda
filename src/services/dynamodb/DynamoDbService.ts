@@ -9,6 +9,7 @@ import {
 import { DynamoDbError, getEnvVariable } from "../../utils/utils";
 import { v4 as uuidv4 } from "uuid";
 import {
+    DynamoDbCreateContentRequestInput,
     DynamoDbCreateExistingContentPiecesInput,
     DynamoDbCreateUserProfileInput,
     DynamoDbGetUserProfileInput,
@@ -128,6 +129,33 @@ class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve user profile.");
+        }
+    };
+
+    createContentRequest = async (input: DynamoDbCreateContentRequestInput) => {
+        const { userId, conciseIdeaContext } = input;
+        const { ideaContext, contentFormat, contentPiecesCount } = input.contentRequest;
+
+        const contentRequestItem = {
+            PK: `u#${userId}`,
+            SK: `cr#${Date.now()}#${uuidv4()}`,
+            ideaContext,
+            contentFormat,
+            contentPiecesCount,
+            conciseIdeaContext,
+        };
+
+        const command = new PutCommand({
+            TableName: this.appDataTableName,
+            Item: contentRequestItem,
+        });
+
+        try {
+            await this.docClient.send(command);
+            return contentRequestItem;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to create content request.");
         }
     };
 }

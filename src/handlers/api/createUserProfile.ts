@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { BadRequestError } from "../../utils/utils";
+import { BadRequestError, getEnvVariable } from "../../utils/utils";
 import DynamoDbService from "../../services/dynamodb/DynamoDbService";
 import SqsService from "../../services/sqs/SqsService";
 import { errorResponse } from "../helpers/errorResponse";
@@ -53,14 +53,15 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         existingContent,
     });
 
-    const sendBrandSummaryRequestMessagePromise = sqsService.sendBrandSummaryRequestMessage({
-        message: { userId: sub, brandDetails, existingContent },
-    });
-
     try {
         const userProfile = await createUserProfilePromise;
         const existingContentPieces = await createExistingContentPiecesPromise;
-        await sendBrandSummaryRequestMessagePromise;
+
+        const brandSummaryRequestQueueUrl = getEnvVariable("BRAND_SUMMARY_REQUEST_QUEUE_URL");
+        await sqsService.sendBrandSummaryRequestMessage({
+            message: { userId: sub, brandDetails, existingContent },
+            queueUrl: brandSummaryRequestQueueUrl,
+        });
 
         const responseBody = {
             profile: userProfile,

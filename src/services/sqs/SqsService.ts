@@ -4,19 +4,17 @@ import { SqsSendBrandSummaryRequestMessageInput } from "./types";
 
 class SqsService {
     private sqsClient: SQSClient;
-    private brandSummaryRequestQueueUrl: string;
 
     constructor() {
         const awsRegion = getEnvVariable("AWS_REGION");
         this.sqsClient = new SQSClient({ region: awsRegion });
-        this.brandSummaryRequestQueueUrl = getEnvVariable("BRAND_SUMMARY_REQUEST_QUEUE_URL");
     }
 
     sendBrandSummaryRequestMessage = async (input: SqsSendBrandSummaryRequestMessageInput) => {
-        const { message } = input;
+        const { message, queueUrl } = input;
 
         const command = new SendMessageCommand({
-            QueueUrl: this.brandSummaryRequestQueueUrl,
+            QueueUrl: queueUrl,
             MessageBody: JSON.stringify(message),
         });
 

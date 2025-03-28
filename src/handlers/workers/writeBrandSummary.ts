@@ -30,7 +30,7 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
             }
 
             const prompt = createBrandSummaryPrompt(message.brandDetails, message.existingContent);
-            const claudeResponsePromise = anthropicApiService.getClaudeResponse({ prompt });
+            const claudeResponsePromise = anthropicApiService.getClaudeResponse({ prompt, thinking: true });
             messageResponses.push({ messageId: record.messageId, userId: message.userId, claudeResponsePromise });
         } catch (error) {
             console.log(error);

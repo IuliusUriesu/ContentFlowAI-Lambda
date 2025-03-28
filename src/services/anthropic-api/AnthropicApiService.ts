@@ -11,14 +11,15 @@ class AnthropicApiService {
     }
 
     getClaudeResponse = async (input: AnthropicApiGetClaudeResponseInput): Promise<string> => {
-        const { prompt } = input;
+        const { prompt, thinking } = input;
+        console.log(prompt);
 
         const anthropic = await this.anthropicClientPromise;
 
         const response = await anthropic.messages.create({
             model: "claude-3-7-sonnet-20250219",
             max_tokens: 20000,
-            thinking: { type: "enabled", budget_tokens: 12000 },
+            thinking: thinking === true ? { type: "enabled", budget_tokens: 12000 } : undefined,
             messages: [{ role: "user", content: prompt }],
         });
 

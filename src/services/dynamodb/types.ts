@@ -1,4 +1,5 @@
 import { BrandDetails } from "../../models/BrandDetails";
+import { ContentRequest } from "../../models/ContentRequest";
 import { ExistingContentPiece } from "../../models/ExistingContentPiece";
 
 export interface DynamoDbCreateUserProfileInput {
@@ -19,4 +20,10 @@ export interface DynamoDbUpdateBrandSummaryInput {
 
 export interface DynamoDbGetUserProfileInput {
     userId: string;
+}
+
+export interface DynamoDbCreateContentRequestInput {
+    userId: string;
+    contentRequest: ContentRequest;
+    conciseIdeaContext: string;
 }
