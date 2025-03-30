@@ -1,6 +1,7 @@
 import { BrandDetails } from "../../models/BrandDetails";
 import { ContentRequest } from "../../models/ContentRequest";
-import { ExistingContentPiece } from "../../models/ExistingContentPiece";
+import { ContentPiece } from "../../models/ContentPiece";
+import { GeneratedContentPiece } from "../../models/GeneratedContentPiece";
 
 export interface DynamoDbCreateUserProfileInput {
     userId: string;
@@ -10,7 +11,7 @@ export interface DynamoDbCreateUserProfileInput {
 
 export interface DynamoDbCreateExistingContentPiecesInput {
     userId: string;
-    existingContent: ExistingContentPiece[];
+    existingContent: ContentPiece[];
 }
 
 export interface DynamoDbUpdateBrandSummaryInput {
@@ -26,4 +27,26 @@ export interface DynamoDbCreateContentRequestInput {
     userId: string;
     contentRequest: ContentRequest;
     conciseIdeaContext: string;
+}
+
+export interface DynamoDbGetContentRequestInput {
+    userId: string;
+    contentRequestFullId: string;
+}
+
+export interface DynamoDbGetPostedContent {
+    userId: string;
+}
+
+export interface DynamoDbCreateGeneratedContentPiecesInput {
+    userId: string;
+    contentRequestFullId: string;
+    contentFormat: string;
+    generatedContent: GeneratedContentPiece[];
+}
+
+export interface DynamoDbUpdateIsContentRequestProcessedInput {
+    userId: string;
+    contentRequestFullId: string;
+    isRequestProcessed: boolean;
 }

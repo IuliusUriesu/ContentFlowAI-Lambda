@@ -5,7 +5,7 @@ import SqsService from "../../services/sqs/SqsService";
 import { errorResponse } from "../helpers/errorResponse";
 import { successResponse } from "../helpers/successResponse";
 import { BrandDetails } from "../../models/BrandDetails";
-import { ExistingContentPiece } from "../../models/ExistingContentPiece";
+import { ContentPiece } from "../../models/ContentPiece";
 
 const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -102,12 +102,12 @@ const extractBrandDetails = (body: any): BrandDetails => {
     return { brandThemes, toneOfVoice, targetAudience, contentGoals };
 };
 
-const extractExistingContent = (body: any): ExistingContentPiece[] => {
+const extractExistingContent = (body: any): ContentPiece[] => {
     const existingContent = body.existingContent;
     if (!existingContent) return [];
     if (!Array.isArray(existingContent)) return [];
 
-    const existingContentPieces: ExistingContentPiece[] = [];
+    const existingContentPieces: ContentPiece[] = [];
     for (let i = 0; i < existingContent.length; i++) {
         const piece = existingContent[i];
         const { format, content } = piece;

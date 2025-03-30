@@ -5,7 +5,7 @@ import DynamoDbService from "../../services/dynamodb/DynamoDbService";
 import SqsService from "../../services/sqs/SqsService";
 import AnthropicApiService from "../../services/anthropic-api/AnthropicApiService";
 import { ContentRequest } from "../../models/ContentRequest";
-import { BadRequestError, LlmResponseParsingError } from "../../utils/utils";
+import { BadRequestError, getEnvVariable, LlmResponseParsingError } from "../../utils/utils";
 
 const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -47,6 +47,12 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
             conciseIdeaContext,
         });
 
+        const contentRequestQueueUrl = getEnvVariable("CONTENT_REQUEST_QUEUE_URL");
+        await sqsService.sendContentRequestMessage({
+            message: { userId: sub, contentRequestFullId: createdContentRequest.SK, contentRequest },
+            queueUrl: contentRequestQueueUrl,
+        });
+
         return successResponse(201, createdContentRequest);
     } catch (error) {
         console.log(error);
@@ -55,7 +61,7 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
 };
 
 const extractContentRequest = (body: any): ContentRequest => {
-    const { ideaContext, contentFormat, contentPiecesCount } = body;
+    let { ideaContext, contentFormat, contentPiecesCount } = body;
 
     if (!ideaContext || typeof ideaContext !== "string") {
         throw new BadRequestError("Required field 'ideaContext' is missing or invalid.");
@@ -68,6 +74,9 @@ const extractContentRequest = (body: any): ContentRequest => {
     if (!contentPiecesCount || typeof contentPiecesCount !== "number" || contentPiecesCount <= 0) {
         throw new BadRequestError("Required field 'contentPiecesCount' is missing or invalid.");
     }
+
+    contentPiecesCount = Math.floor(contentPiecesCount);
+    contentPiecesCount = Math.min(contentPiecesCount, 20);
 
     return { ideaContext, contentFormat, contentPiecesCount };
 };

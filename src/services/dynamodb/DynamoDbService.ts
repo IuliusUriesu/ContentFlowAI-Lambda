@@ -4,6 +4,7 @@ import {
     DynamoDBDocumentClient,
     GetCommand,
     PutCommand,
+    QueryCommand,
     UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { DynamoDbError, getEnvVariable } from "../../utils/utils";
@@ -11,9 +12,13 @@ import { v4 as uuidv4 } from "uuid";
 import {
     DynamoDbCreateContentRequestInput,
     DynamoDbCreateExistingContentPiecesInput,
+    DynamoDbCreateGeneratedContentPiecesInput,
     DynamoDbCreateUserProfileInput,
+    DynamoDbGetContentRequestInput,
+    DynamoDbGetPostedContent,
     DynamoDbGetUserProfileInput,
     DynamoDbUpdateBrandSummaryInput,
+    DynamoDbUpdateIsContentRequestProcessedInput,
 } from "./types";
 
 class DynamoDbService {
@@ -58,7 +63,7 @@ class DynamoDbService {
     createExistingContentPieces = async (input: DynamoDbCreateExistingContentPiecesInput) => {
         const { userId, existingContent } = input;
 
-        if (existingContent.length === 0) return;
+        if (existingContent.length === 0) return [];
 
         const existingContentItems = existingContent.map((piece) => ({
             PK: `u#${userId}#posted`,
@@ -143,6 +148,7 @@ class DynamoDbService {
             contentFormat,
             contentPiecesCount,
             conciseIdeaContext,
+            isRequestProcessed: false,
         };
 
         const command = new PutCommand({
@@ -156,6 +162,110 @@ class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create content request.");
+        }
+    };
+
+    getContentRequest = async (input: DynamoDbGetContentRequestInput) => {
+        const { userId, contentRequestFullId } = input;
+
+        const command = new GetCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}`,
+                SK: contentRequestFullId,
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Item;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve content request.");
+        }
+    };
+
+    getPostedContent = async (input: DynamoDbGetPostedContent) => {
+        const { userId } = input;
+
+        const command = new QueryCommand({
+            TableName: this.appDataTableName,
+            KeyConditionExpression: "PK = :pk",
+            ExpressionAttributeValues: {
+                ":pk": `u#${userId}#posted`,
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Items;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve posted content.");
+        }
+    };
+
+    createGeneratedContentPieces = async (input: DynamoDbCreateGeneratedContentPiecesInput) => {
+        const { userId, contentRequestFullId, contentFormat, generatedContent } = input;
+
+        const generatedContentItems = generatedContent.map((piece) => {
+            const generatedContentId = `gc#${uuidv4()}`;
+            return {
+                PK: contentRequestFullId,
+                SK: generatedContentId,
+                userId: `u#${userId}`,
+                generatedContentId,
+                format: contentFormat,
+                idea: piece.idea,
+                content: piece.content,
+                initialLlmContent: piece.content,
+                markedAsPosted: false,
+            };
+        });
+
+        const putRequests = generatedContentItems.map((item) => ({
+            PutRequest: {
+                Item: item,
+            },
+        }));
+
+        const command = new BatchWriteCommand({
+            RequestItems: {
+                [this.appDataTableName]: putRequests,
+            },
+        });
+
+        try {
+            await this.docClient.send(command);
+            return generatedContentItems;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to create existing content pieces.");
+        }
+    };
+
+    updateIsContentRequestProcessed = async (input: DynamoDbUpdateIsContentRequestProcessedInput) => {
+        const { userId, contentRequestFullId, isRequestProcessed } = input;
+
+        const command = new UpdateCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}`,
+                SK: contentRequestFullId,
+            },
+            UpdateExpression: "SET isRequestProcessed = :isRequestProcessed",
+            ExpressionAttributeValues: {
+                ":isRequestProcessed": isRequestProcessed,
+            },
+            ReturnValues: "ALL_NEW",
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Attributes;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to update content request processed status.");
         }
     };
 }

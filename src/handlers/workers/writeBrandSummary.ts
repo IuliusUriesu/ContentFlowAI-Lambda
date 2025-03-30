@@ -1,7 +1,7 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent, SQSHandler } from "aws-lambda";
 import { SqsBrandSummaryRequestMessageSchema } from "../../services/sqs/types";
 import { BrandDetails } from "../../models/BrandDetails";
-import { ExistingContentPiece } from "../../models/ExistingContentPiece";
+import { ContentPiece } from "../../models/ContentPiece";
 import AnthropicApiService from "../../services/anthropic-api/AnthropicApiService";
 import DynamoDbService from "../../services/dynamodb/DynamoDbService";
 
@@ -11,7 +11,7 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
     const anthropicApiService = new AnthropicApiService();
     const dynamoDbService = new DynamoDbService();
 
-    const messageResponses: {
+    const claudeResponsePromises: {
         messageId: string;
         userId: string;
         claudeResponsePromise: Promise<string>;
@@ -25,33 +25,33 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
 
             const userProfile = await dynamoDbService.getUserProfile({ userId: message.userId });
             if (userProfile && userProfile.brandSummary) {
-                console.log("Brand summary exists. Skipping record...");
+                console.log(`Brand summary already exists for user u#${message.userId}. Skipping record...`);
                 continue;
             }
 
             const prompt = createBrandSummaryPrompt(message.brandDetails, message.existingContent);
             const claudeResponsePromise = anthropicApiService.getClaudeResponse({ prompt, thinking: true });
-            messageResponses.push({ messageId: record.messageId, userId: message.userId, claudeResponsePromise });
+            claudeResponsePromises.push({ messageId: record.messageId, userId: message.userId, claudeResponsePromise });
         } catch (error) {
             console.log(error);
             batchItemFailures.push({ itemIdentifier: record.messageId });
         }
     }
 
-    for (const response of messageResponses) {
+    for (const promise of claudeResponsePromises) {
         try {
-            const brandSummary = await response.claudeResponsePromise;
-            await dynamoDbService.updateBrandSummary({ userId: response.userId, brandSummary });
+            const brandSummary = await promise.claudeResponsePromise;
+            await dynamoDbService.updateBrandSummary({ userId: promise.userId, brandSummary });
         } catch (error) {
             console.log(error);
-            batchItemFailures.push({ itemIdentifier: response.messageId });
+            batchItemFailures.push({ itemIdentifier: promise.messageId });
         }
     }
 
     return { batchItemFailures };
 };
 
-const createBrandSummaryPrompt = (brandDetails: BrandDetails, existingContent: ExistingContentPiece[]): string => {
+const createBrandSummaryPrompt = (brandDetails: BrandDetails, existingContent: ContentPiece[]): string => {
     const brandDetailsXml =
         "<brand_details>\n" +
         `<brand_themes>${brandDetails.brandThemes}</brand_themes>\n` +
