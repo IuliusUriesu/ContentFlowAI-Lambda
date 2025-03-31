@@ -48,6 +48,10 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
         }
     }
 
+    if (batchItemFailures.length > 0) {
+        console.log("Failed messages:");
+        console.log(batchItemFailures);
+    }
     return { batchItemFailures };
 };
 

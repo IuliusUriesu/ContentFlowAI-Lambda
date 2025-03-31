@@ -29,6 +29,10 @@ export interface DynamoDbCreateContentRequestInput {
     conciseIdeaContext: string;
 }
 
+export interface DynamoDbGetAllContentRequestsInput {
+    userId: string;
+}
+
 export interface DynamoDbGetContentRequestInput {
     userId: string;
     contentRequestFullId: string;

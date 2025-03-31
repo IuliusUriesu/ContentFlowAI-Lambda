@@ -14,6 +14,7 @@ import {
     DynamoDbCreateExistingContentPiecesInput,
     DynamoDbCreateGeneratedContentPiecesInput,
     DynamoDbCreateUserProfileInput,
+    DynamoDbGetAllContentRequestsInput,
     DynamoDbGetContentRequestInput,
     DynamoDbGetPostedContent,
     DynamoDbGetUserProfileInput,
@@ -162,6 +163,27 @@ class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create content request.");
+        }
+    };
+
+    getAllContentRequests = async (input: DynamoDbGetAllContentRequestsInput) => {
+        const { userId } = input;
+
+        const command = new QueryCommand({
+            TableName: this.appDataTableName,
+            KeyConditionExpression: "PK = :pk AND begins_with(SK, :skPrefix)",
+            ExpressionAttributeValues: {
+                ":pk": `u#${userId}`,
+                ":skPrefix": "cr#",
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Items;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve content requests.");
         }
     };
 
