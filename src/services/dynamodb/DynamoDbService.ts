@@ -15,8 +15,9 @@ import {
     DynamoDbCreateGeneratedContentPiecesInput,
     DynamoDbCreateUserProfileInput,
     DynamoDbGetAllContentRequestsInput,
+    DynamoDbGetAllGeneratedContentByRequestInput,
     DynamoDbGetContentRequestInput,
-    DynamoDbGetPostedContent,
+    DynamoDbGetPostedContentInput,
     DynamoDbGetUserProfileInput,
     DynamoDbUpdateBrandSummaryInput,
     DynamoDbUpdateIsContentRequestProcessedInput,
@@ -207,7 +208,28 @@ class DynamoDbService {
         }
     };
 
-    getPostedContent = async (input: DynamoDbGetPostedContent) => {
+    getAllGeneratedContentByRequest = async (input: DynamoDbGetAllGeneratedContentByRequestInput) => {
+        const { userId, contentRequestFullId } = input;
+
+        const command = new QueryCommand({
+            TableName: this.appDataTableName,
+            KeyConditionExpression: "PK = :pk AND begins_with(SK, :skPrefix)",
+            ExpressionAttributeValues: {
+                ":pk": `u#${userId}#${contentRequestFullId}`,
+                ":skPrefix": "gc#",
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            return response.Items;
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve generated content.");
+        }
+    };
+
+    getPostedContent = async (input: DynamoDbGetPostedContentInput) => {
         const { userId } = input;
 
         const command = new QueryCommand({
@@ -233,9 +255,8 @@ class DynamoDbService {
         const generatedContentItems = generatedContent.map((piece) => {
             const generatedContentId = `gc#${uuidv4()}`;
             return {
-                PK: contentRequestFullId,
+                PK: `u#${userId}#${contentRequestFullId}`,
                 SK: generatedContentId,
-                userId: `u#${userId}`,
                 generatedContentId,
                 format: contentFormat,
                 idea: piece.idea,

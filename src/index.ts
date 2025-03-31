@@ -3,6 +3,7 @@ import createUserProfile from "./handlers/api/createUserProfile";
 import createContentRequest from "./handlers/api/createContentRequest";
 import getAllContentRequests from "./handlers/api/getAllContentRequests";
 import getContentRequest from "./handlers/api/getContentRequest";
+import getAllGeneratedContent from "./handlers/api/getAllGeneratedContent";
 import writeBrandSummary from "./handlers/workers/writeBrandSummary";
 import generateContent from "./handlers/workers/generateContent";
 
@@ -12,6 +13,7 @@ exports.createUserProfile = createUserProfile;
 exports.createContentRequest = createContentRequest;
 exports.getAllContentRequests = getAllContentRequests;
 exports.getContentRequest = getContentRequest;
+exports.getAllGeneratedContent = getAllGeneratedContent;
 
 // Worker Handlers
 exports.writeBrandSummary = writeBrandSummary;

@@ -38,7 +38,12 @@ export interface DynamoDbGetContentRequestInput {
     contentRequestFullId: string;
 }
 
-export interface DynamoDbGetPostedContent {
+export interface DynamoDbGetAllGeneratedContentByRequestInput {
+    userId: string;
+    contentRequestFullId: string;
+}
+
+export interface DynamoDbGetPostedContentInput {
     userId: string;
 }
 
