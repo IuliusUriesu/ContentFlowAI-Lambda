@@ -17,6 +17,7 @@ import {
     DynamoDbGetAllContentRequestsInput,
     DynamoDbGetAllGeneratedContentByRequestInput,
     DynamoDbGetContentRequestInput,
+    DynamoDbGetGeneratedContentPieceInput,
     DynamoDbGetPostedContentInput,
     DynamoDbGetUserProfileInput,
     DynamoDbUpdateBrandSummaryInput,
@@ -26,12 +27,14 @@ import {
 class DynamoDbService {
     private docClient: DynamoDBDocumentClient;
     private appDataTableName: string;
+    private generatedContentGsiName: string;
 
     constructor() {
         const awsRegion = getEnvVariable("AWS_REGION");
         const client = new DynamoDBClient({ region: awsRegion });
         this.docClient = DynamoDBDocumentClient.from(client);
         this.appDataTableName = getEnvVariable("APP_DATA_TABLE_NAME");
+        this.generatedContentGsiName = getEnvVariable("GENERATED_CONTENT_GSI_NAME");
     }
 
     createUserProfile = async (input: DynamoDbCreateUserProfileInput) => {
@@ -177,6 +180,7 @@ class DynamoDbService {
                 ":pk": `u#${userId}`,
                 ":skPrefix": "cr#",
             },
+            ScanIndexForward: false,
         });
 
         try {
@@ -284,6 +288,28 @@ class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create existing content pieces.");
+        }
+    };
+
+    getGeneratedContentPiece = async (input: DynamoDbGetGeneratedContentPieceInput) => {
+        const { generatedContentFullId } = input;
+
+        const command = new QueryCommand({
+            TableName: this.appDataTableName,
+            IndexName: this.generatedContentGsiName,
+            KeyConditionExpression: "generatedContentId = :generatedContentId",
+            ExpressionAttributeValues: {
+                ":generatedContentId": generatedContentFullId,
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            if (!response.Items || response.Items.length === 0) return undefined;
+            return response.Items[0];
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve generated content piece.");
         }
     };
 
