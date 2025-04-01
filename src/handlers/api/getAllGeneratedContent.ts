@@ -19,12 +19,14 @@ const getAllGeneratedContent = async (event: APIGatewayProxyEvent): Promise<APIG
     contentRequestId = decodeURIComponent(contentRequestId);
 
     try {
-        let generatedContent = await dynamoDbService.getAllGeneratedContentByRequest({
+        const generatedContent = await dynamoDbService.getAllGeneratedContentByRequest({
             userId: sub,
             contentRequestFullId: contentRequestId,
         });
 
-        if (!generatedContent) generatedContent = [];
+        if (!generatedContent || generatedContent.length === 0) {
+            return errorResponse(404, "Generated content not found.");
+        }
 
         return successResponse(200, generatedContent);
     } catch (error) {
