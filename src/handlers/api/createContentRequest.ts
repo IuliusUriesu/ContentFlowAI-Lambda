@@ -11,11 +11,11 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
     const sub = event.requestContext.authorizer?.claims.sub;
 
     if (!sub) {
-        return errorResponse(401, "Claim 'sub' (user ID) is missing.");
+        return errorResponse(event, 401, "Claim 'sub' (user ID) is missing.");
     }
 
     if (!event.body) {
-        return errorResponse(400, "Request body is empty.");
+        return errorResponse(event, 400, "Request body is empty.");
     }
 
     const dynamoDbService = new DynamoDbService();
@@ -26,14 +26,14 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
     try {
         body = JSON.parse(event.body);
     } catch (error) {
-        return errorResponse(400, "Request body is invalid JSON.");
+        return errorResponse(event, 400, "Request body is invalid JSON.");
     }
 
     let contentRequest: ContentRequest;
     try {
         contentRequest = extractContentRequest(body);
     } catch (error) {
-        return errorResponse(400, (error as Error).message);
+        return errorResponse(event, 400, (error as Error).message);
     }
 
     try {
@@ -53,10 +53,10 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
             queueUrl: contentRequestQueueUrl,
         });
 
-        return successResponse(201, createdContentRequest);
+        return successResponse(event, 201, createdContentRequest);
     } catch (error) {
         console.log(error);
-        return errorResponse(500, "Internal server error");
+        return errorResponse(event, 500, "Internal server error");
     }
 };
 

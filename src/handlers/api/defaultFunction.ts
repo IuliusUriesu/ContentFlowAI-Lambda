@@ -5,7 +5,7 @@ const defaultFunction = async (event: APIGatewayProxyEvent): Promise<APIGatewayP
     const body = {
         message: "Hello from the ContentFlowAI API!",
     };
-    return successResponse(200, body);
+    return successResponse(event, 200, body);
 };
 
 export default defaultFunction;

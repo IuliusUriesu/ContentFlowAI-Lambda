@@ -7,14 +7,14 @@ const getContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGatewa
     const sub = event.requestContext.authorizer?.claims.sub;
 
     if (!sub) {
-        return errorResponse(401, "Claim 'sub' (user ID) is missing.");
+        return errorResponse(event, 401, "Claim 'sub' (user ID) is missing.");
     }
 
     const dynamoDbService = new DynamoDbService();
 
     let contentRequestId = event.pathParameters?.["content-request-id"];
     if (!contentRequestId) {
-        return errorResponse(400, "Requested resource ID is missing.");
+        return errorResponse(event, 400, "Requested resource ID is missing.");
     }
     contentRequestId = decodeURIComponent(contentRequestId);
 
@@ -25,13 +25,13 @@ const getContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         });
 
         if (!contentRequest) {
-            return errorResponse(404, "Content request not found.");
+            return errorResponse(event, 404, "Content request not found.");
         }
 
-        return successResponse(200, contentRequest);
+        return successResponse(event, 200, contentRequest);
     } catch (error) {
         console.log(error);
-        return errorResponse(500, "Internal server error");
+        return errorResponse(event, 500, "Internal server error");
     }
 };
 

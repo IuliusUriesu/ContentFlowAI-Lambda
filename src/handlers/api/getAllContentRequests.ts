@@ -7,7 +7,7 @@ const getAllContentRequests = async (event: APIGatewayProxyEvent): Promise<APIGa
     const sub = event.requestContext.authorizer?.claims.sub;
 
     if (!sub) {
-        return errorResponse(401, "Claim 'sub' (user ID) is missing.");
+        return errorResponse(event, 401, "Claim 'sub' (user ID) is missing.");
     }
 
     const dynamoDbService = new DynamoDbService();
@@ -16,10 +16,10 @@ const getAllContentRequests = async (event: APIGatewayProxyEvent): Promise<APIGa
         let contentRequests = await dynamoDbService.getAllContentRequests({ userId: sub });
         if (!contentRequests) contentRequests = [];
 
-        return successResponse(200, contentRequests);
+        return successResponse(event, 200, contentRequests);
     } catch (error) {
         console.log(error);
-        return errorResponse(500, "Internal server error");
+        return errorResponse(event, 500, "Internal server error");
     }
 };
 

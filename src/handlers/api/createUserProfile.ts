@@ -12,15 +12,15 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
     const fullName = event.requestContext.authorizer?.claims.name;
 
     if (!sub) {
-        return errorResponse(401, "Claim 'sub' (user ID) is missing.");
+        return errorResponse(event, 401, "Claim 'sub' (user ID) is missing.");
     }
 
     if (!fullName) {
-        return errorResponse(400, "Claim 'name' (full name) is missing.");
+        return errorResponse(event, 400, "Claim 'name' (full name) is missing.");
     }
 
     if (!event.body) {
-        return errorResponse(400, "Request body is empty.");
+        return errorResponse(event, 400, "Request body is empty.");
     }
 
     const dynamoDbService = new DynamoDbService();
@@ -30,14 +30,14 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
     try {
         body = JSON.parse(event.body);
     } catch (error) {
-        return errorResponse(400, "Request body is invalid JSON.");
+        return errorResponse(event, 400, "Request body is invalid JSON.");
     }
 
     let brandDetails: BrandDetails;
     try {
         brandDetails = extractBrandDetails(body);
     } catch (error) {
-        return errorResponse(400, (error as Error).message);
+        return errorResponse(event, 400, (error as Error).message);
     }
 
     const existingContent = extractExistingContent(body);
@@ -68,10 +68,10 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
             existingContent: existingContentPieces,
         };
 
-        return successResponse(201, responseBody);
+        return successResponse(event, 201, responseBody);
     } catch (error) {
         console.log(error);
-        return errorResponse(500, "Internal server error");
+        return errorResponse(event, 500, "Internal server error");
     }
 };
 

@@ -7,14 +7,14 @@ const getAllGeneratedContent = async (event: APIGatewayProxyEvent): Promise<APIG
     const sub = event.requestContext.authorizer?.claims.sub;
 
     if (!sub) {
-        return errorResponse(401, "Claim 'sub' (user ID) is missing.");
+        return errorResponse(event, 401, "Claim 'sub' (user ID) is missing.");
     }
 
     const dynamoDbService = new DynamoDbService();
 
     let contentRequestId = event.pathParameters?.["content-request-id"];
     if (!contentRequestId) {
-        return errorResponse(400, "Requested resource ID is missing.");
+        return errorResponse(event, 400, "Requested resource ID is missing.");
     }
     contentRequestId = decodeURIComponent(contentRequestId);
 
@@ -25,13 +25,13 @@ const getAllGeneratedContent = async (event: APIGatewayProxyEvent): Promise<APIG
         });
 
         if (!generatedContent || generatedContent.length === 0) {
-            return errorResponse(404, "Generated content not found.");
+            return errorResponse(event, 404, "Generated content not found.");
         }
 
-        return successResponse(200, generatedContent);
+        return successResponse(event, 200, generatedContent);
     } catch (error) {
         console.log(error);
-        return errorResponse(500, "Internal server error");
+        return errorResponse(event, 500, "Internal server error");
     }
 };
 

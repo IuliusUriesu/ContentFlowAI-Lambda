@@ -1,11 +1,18 @@
-import { APIGatewayProxyResult } from "aws-lambda";
+import { APIGatewayProxyResult, APIGatewayProxyEvent } from "aws-lambda";
 
-export const successResponse = (statusCode: number, body: any): APIGatewayProxyResult => {
+export const successResponse = (event: APIGatewayProxyEvent, statusCode: number, body: any): APIGatewayProxyResult => {
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+    };
+
+    const origin = event.headers.origin ?? event.headers.Origin;
+    if (origin) {
+        headers["Access-Control-Allow-Origin"] = origin;
+    }
+
     return {
         statusCode,
-        headers: {
-            "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(body),
     };
 };
