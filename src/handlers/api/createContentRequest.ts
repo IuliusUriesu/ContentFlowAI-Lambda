@@ -1,11 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { successResponse } from "../helpers/successResponse";
 import { errorResponse } from "../helpers/errorResponse";
-import DynamoDbService from "../../services/dynamodb/DynamoDbService";
-import SqsService from "../../services/sqs/SqsService";
-import AnthropicApiService from "../../services/anthropic-api/AnthropicApiService";
-import { ContentRequest } from "../../models/ContentRequest";
-import { BadRequestError, getEnvVariable, LlmResponseParsingError } from "../../utils/utils";
+import { getEnvVariable, LlmResponseParsingError } from "../../utils/utils";
+import { CreateContentRequestBodySchema } from "../../models/api/CreateContentRequestBody";
+import { ContentRequestDto } from "../../models/dto/ContentRequestDto";
+import DynamoDbServiceProvider from "../../services/dynamodb";
+import AnthropicApiServiceProvider from "../../services/anthropic-api";
+import SqsServiceProvider from "../../services/sqs";
 
 const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -18,10 +19,6 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
         return errorResponse(event, 400, "Request body is empty.");
     }
 
-    const dynamoDbService = new DynamoDbService();
-    const sqsService = new SqsService();
-    const anthropicApiService = new AnthropicApiService();
-
     let body;
     try {
         body = JSON.parse(event.body);
@@ -29,27 +26,33 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
         return errorResponse(event, 400, "Request body is invalid JSON.");
     }
 
-    let contentRequest: ContentRequest;
-    try {
-        contentRequest = extractContentRequest(body);
-    } catch (error) {
-        return errorResponse(event, 400, (error as Error).message);
+    const parsedBody = CreateContentRequestBodySchema.safeParse(body);
+    if (!parsedBody.success) {
+        const issues = parsedBody.error.issues;
+        const errorMessage = issues.length > 0 ? issues[0].message : "Request body is invalid.";
+        return errorResponse(event, 400, errorMessage);
     }
 
+    const contentRequestDto: ContentRequestDto = parsedBody.data;
+
+    const dynamoDbService = DynamoDbServiceProvider.getService();
+    const anthropicApiService = AnthropicApiServiceProvider.getService();
+    const sqsService = SqsServiceProvider.getService();
+
     try {
-        const conciseIdeaContextPrompt = createConciseIdeaContextPrompt(contentRequest.ideaContext);
+        const conciseIdeaContextPrompt = createConciseIdeaContextPrompt(contentRequestDto.ideaContext);
         const claudeResponse = await anthropicApiService.getClaudeResponse({ prompt: conciseIdeaContextPrompt });
         const conciseIdeaContext = extractConciseIdeaContext(claudeResponse);
 
         const createdContentRequest = await dynamoDbService.createContentRequest({
             userId: sub,
-            contentRequest,
+            contentRequest: contentRequestDto,
             conciseIdeaContext,
         });
 
         const contentRequestQueueUrl = getEnvVariable("CONTENT_REQUEST_QUEUE_URL");
         await sqsService.sendContentRequestMessage({
-            message: { userId: sub, contentRequestFullId: createdContentRequest.SK, contentRequest },
+            message: { userId: sub, contentRequestId: createdContentRequest.id, contentRequest: contentRequestDto },
             queueUrl: contentRequestQueueUrl,
         });
 
@@ -58,27 +61,6 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
         console.log(error);
         return errorResponse(event, 500, "Internal server error");
     }
-};
-
-const extractContentRequest = (body: any): ContentRequest => {
-    let { ideaContext, contentFormat, contentPiecesCount } = body;
-
-    if (!ideaContext || typeof ideaContext !== "string") {
-        throw new BadRequestError("Required field 'ideaContext' is missing or invalid.");
-    }
-
-    if (!contentFormat || typeof contentFormat !== "string") {
-        throw new BadRequestError("Required field 'contentFormat' is missing or invalid.");
-    }
-
-    if (!contentPiecesCount || typeof contentPiecesCount !== "number" || contentPiecesCount <= 0) {
-        throw new BadRequestError("Required field 'contentPiecesCount' is missing or invalid.");
-    }
-
-    contentPiecesCount = Math.floor(contentPiecesCount);
-    contentPiecesCount = Math.min(contentPiecesCount, 20);
-
-    return { ideaContext, contentFormat, contentPiecesCount };
 };
 
 const createConciseIdeaContextPrompt = (ideaContext: string): string => {

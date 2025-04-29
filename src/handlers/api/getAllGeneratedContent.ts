@@ -1,7 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { successResponse } from "../helpers/successResponse";
 import { errorResponse } from "../helpers/errorResponse";
-import DynamoDbService from "../../services/dynamodb/DynamoDbService";
+import DynamoDbServiceProvider from "../../services/dynamodb";
 
 const getAllGeneratedContent = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -10,23 +10,18 @@ const getAllGeneratedContent = async (event: APIGatewayProxyEvent): Promise<APIG
         return errorResponse(event, 401, "Claim 'sub' (user ID) is missing.");
     }
 
-    const dynamoDbService = new DynamoDbService();
-
-    let contentRequestId = event.pathParameters?.["content-request-id"];
+    const contentRequestId = event.pathParameters?.["content-request-id"];
     if (!contentRequestId) {
         return errorResponse(event, 400, "Requested resource ID is missing.");
     }
-    contentRequestId = decodeURIComponent(contentRequestId);
+
+    const dynamoDbService = DynamoDbServiceProvider.getService();
 
     try {
         const generatedContent = await dynamoDbService.getAllGeneratedContentByRequest({
             userId: sub,
-            contentRequestFullId: contentRequestId,
+            contentRequestId,
         });
-
-        if (!generatedContent || generatedContent.length === 0) {
-            return errorResponse(event, 404, "Generated content not found.");
-        }
 
         return successResponse(event, 200, generatedContent);
     } catch (error) {

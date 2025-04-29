@@ -3,7 +3,7 @@ import { DevelopmentError, getEnvVariable } from "../../utils/utils";
 import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicApiGetClaudeResponseInput } from "./types";
 
-class AnthropicApiService {
+export class AnthropicApiService {
     private anthropicClientPromise: Promise<Anthropic>;
 
     constructor() {
@@ -54,5 +54,3 @@ class AnthropicApiService {
         return secretObject.ANTHROPIC_API_KEY;
     };
 }
-
-export default AnthropicApiService;

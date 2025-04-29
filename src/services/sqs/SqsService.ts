@@ -1,12 +1,8 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { getEnvVariable, SqsError } from "../../utils/utils";
-import {
-    SqsSendBrandSummaryRequestMessageInput,
-    SqsSendContentRequestMessageInput,
-    SqsSendMessageInput,
-} from "./types";
+import { SqsBrandSummaryRequestMessage, SqsContentRequestMessage, SqsSendMessageInput } from "./types";
 
-class SqsService {
+export class SqsService {
     private sqsClient: SQSClient;
 
     constructor() {
@@ -14,39 +10,32 @@ class SqsService {
         this.sqsClient = new SQSClient({ region: awsRegion });
     }
 
-    sendBrandSummaryRequestMessage = async (input: SqsSendBrandSummaryRequestMessageInput) => {
-        const { message, queueUrl } = input;
+    sendBrandSummaryRequestMessage = async (input: SqsSendMessageInput<SqsBrandSummaryRequestMessage>) => {
         try {
-            await this.sendMessage({ message: JSON.stringify(message), queueUrl });
+            await this.sendMessage(input);
         } catch (error) {
+            console.log(error);
             throw new SqsError("Failed to send brand summary message.");
         }
     };
 
-    sendContentRequestMessage = async (input: SqsSendContentRequestMessageInput) => {
-        const { message, queueUrl } = input;
+    sendContentRequestMessage = async (input: SqsSendMessageInput<SqsContentRequestMessage>) => {
         try {
-            await this.sendMessage({ message: JSON.stringify(message), queueUrl });
+            await this.sendMessage(input);
         } catch (error) {
+            console.log(error);
             throw new SqsError("Failed to send content request message.");
         }
     };
 
-    private sendMessage = async (input: SqsSendMessageInput) => {
+    private sendMessage = async <T>(input: SqsSendMessageInput<T>) => {
         const { message, queueUrl } = input;
 
         const command = new SendMessageCommand({
             QueueUrl: queueUrl,
-            MessageBody: message,
+            MessageBody: JSON.stringify(message),
         });
 
-        try {
-            await this.sqsClient.send(command);
-        } catch (error) {
-            console.log(error);
-            throw new SqsError("Failed to send message.");
-        }
+        await this.sqsClient.send(command);
     };
 }
-
-export default SqsService;

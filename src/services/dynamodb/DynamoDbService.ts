@@ -10,10 +10,16 @@ import {
 import { DynamoDbError, getEnvVariable } from "../../utils/utils";
 import { v4 as uuidv4 } from "uuid";
 import {
+    DynamoDbContentRequest,
+    DynamoDbContentRequestListSchema,
+    DynamoDbContentRequestSchema,
     DynamoDbCreateContentRequestInput,
     DynamoDbCreateExistingContentPiecesInput,
     DynamoDbCreateGeneratedContentPiecesInput,
     DynamoDbCreateUserProfileInput,
+    DynamoDbPostedContentPiece,
+    DynamoDbGeneratedContentPiece,
+    DynamoDbGeneratedContentPieceListSchema,
     DynamoDbGetAllContentRequestsInput,
     DynamoDbGetAllGeneratedContentByRequestInput,
     DynamoDbGetContentRequestInput,
@@ -22,9 +28,17 @@ import {
     DynamoDbGetUserProfileInput,
     DynamoDbUpdateBrandSummaryInput,
     DynamoDbUpdateIsContentRequestProcessedInput,
+    DynamoDbUserProfile,
+    DynamoDbUserProfileSchema,
+    DynamoDbPostedContentPieceListSchema,
+    DynamoDbGeneratedContentPieceSchema,
 } from "./types";
+import { UserProfile } from "../../models/domain/UserProfile";
+import { ContentPiece } from "../../models/domain/ContentPiece";
+import { ContentRequest } from "../../models/domain/ContentRequest";
+import { GeneratedContentPiece } from "../../models/domain/GeneratedContentPiece";
 
-class DynamoDbService {
+export class DynamoDbService {
     private docClient: DynamoDBDocumentClient;
     private appDataTableName: string;
     private generatedContentGsiName: string;
@@ -37,11 +51,11 @@ class DynamoDbService {
         this.generatedContentGsiName = getEnvVariable("GENERATED_CONTENT_GSI_NAME");
     }
 
-    createUserProfile = async (input: DynamoDbCreateUserProfileInput) => {
+    createUserProfile = async (input: DynamoDbCreateUserProfileInput): Promise<UserProfile> => {
         const { userId, fullName } = input;
         const { brandThemes, toneOfVoice, targetAudience, contentGoals } = input.brandDetails;
 
-        const userProfileItem = {
+        const userProfileItem: DynamoDbUserProfile = {
             PK: `u#${userId}`,
             SK: "profile",
             fullName,
@@ -58,19 +72,19 @@ class DynamoDbService {
 
         try {
             await this.docClient.send(command);
-            return userProfileItem;
+            return this.mapUserProfile(userProfileItem);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create user profile.");
         }
     };
 
-    createExistingContentPieces = async (input: DynamoDbCreateExistingContentPiecesInput) => {
+    createExistingContentPieces = async (input: DynamoDbCreateExistingContentPiecesInput): Promise<ContentPiece[]> => {
         const { userId, existingContent } = input;
 
         if (existingContent.length === 0) return [];
 
-        const existingContentItems = existingContent.map((piece) => ({
+        const existingContentItems: DynamoDbPostedContentPiece[] = existingContent.map((piece) => ({
             PK: `u#${userId}#posted`,
             SK: `f#${piece.format}#ec#${uuidv4()}`,
             content: piece.content,
@@ -90,14 +104,14 @@ class DynamoDbService {
 
         try {
             await this.docClient.send(command);
-            return existingContentItems;
+            return existingContentItems.map((item) => this.mapContentPiece(item));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create existing content pieces.");
         }
     };
 
-    updateBrandSummary = async (input: DynamoDbUpdateBrandSummaryInput) => {
+    updateBrandSummary = async (input: DynamoDbUpdateBrandSummaryInput): Promise<UserProfile> => {
         const { userId, brandSummary } = input;
 
         const command = new UpdateCommand({
@@ -110,19 +124,20 @@ class DynamoDbService {
             ExpressionAttributeValues: {
                 ":brandSummary": brandSummary,
             },
-            ReturnValues: "UPDATED_NEW",
+            ReturnValues: "ALL_NEW",
         });
 
         try {
             const response = await this.docClient.send(command);
-            return response.Attributes;
+            const userProfile = DynamoDbUserProfileSchema.parse(response.Attributes);
+            return this.mapUserProfile(userProfile);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to update brand summary.");
         }
     };
 
-    getUserProfile = async (input: DynamoDbGetUserProfileInput) => {
+    getUserProfile = async (input: DynamoDbGetUserProfileInput): Promise<UserProfile | null> => {
         const { userId } = input;
 
         const command = new GetCommand({
@@ -135,25 +150,28 @@ class DynamoDbService {
 
         try {
             const response = await this.docClient.send(command);
-            return response.Item;
+            if (!response.Item) return null;
+            const userProfile = DynamoDbUserProfileSchema.parse(response.Item);
+            return this.mapUserProfile(userProfile);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve user profile.");
         }
     };
 
-    createContentRequest = async (input: DynamoDbCreateContentRequestInput) => {
+    createContentRequest = async (input: DynamoDbCreateContentRequestInput): Promise<ContentRequest> => {
         const { userId, conciseIdeaContext } = input;
         const { ideaContext, contentFormat, contentPiecesCount } = input.contentRequest;
 
-        const contentRequestItem = {
-            PK: `u#${userId}`,
-            SK: `cr#${Date.now()}#${uuidv4()}`,
+        const contentRequestItem: DynamoDbContentRequest = {
+            PK: `u#${userId}#cr`,
+            SK: `cr#${uuidv4()}`,
             ideaContext,
             contentFormat,
             contentPiecesCount,
             conciseIdeaContext,
             isRequestProcessed: false,
+            createdAt: Date.now(),
         };
 
         const command = new PutCommand({
@@ -163,77 +181,84 @@ class DynamoDbService {
 
         try {
             await this.docClient.send(command);
-            return contentRequestItem;
+            return this.mapContentRequest(contentRequestItem);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create content request.");
         }
     };
 
-    getAllContentRequests = async (input: DynamoDbGetAllContentRequestsInput) => {
+    getAllContentRequests = async (input: DynamoDbGetAllContentRequestsInput): Promise<ContentRequest[]> => {
         const { userId } = input;
 
         const command = new QueryCommand({
             TableName: this.appDataTableName,
             KeyConditionExpression: "PK = :pk AND begins_with(SK, :skPrefix)",
             ExpressionAttributeValues: {
-                ":pk": `u#${userId}`,
+                ":pk": `u#${userId}#cr`,
                 ":skPrefix": "cr#",
             },
-            ScanIndexForward: false,
         });
 
         try {
             const response = await this.docClient.send(command);
-            return response.Items;
+            if (!response.Items) return [];
+            const contentRequests = DynamoDbContentRequestListSchema.parse(response.Items);
+            return contentRequests.map((cr) => this.mapContentRequest(cr));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve content requests.");
         }
     };
 
-    getContentRequest = async (input: DynamoDbGetContentRequestInput) => {
-        const { userId, contentRequestFullId } = input;
+    getContentRequest = async (input: DynamoDbGetContentRequestInput): Promise<ContentRequest | null> => {
+        const { userId, contentRequestId } = input;
 
         const command = new GetCommand({
             TableName: this.appDataTableName,
             Key: {
-                PK: `u#${userId}`,
-                SK: contentRequestFullId,
+                PK: `u#${userId}#cr`,
+                SK: `cr#${contentRequestId}`,
             },
         });
 
         try {
             const response = await this.docClient.send(command);
-            return response.Item;
+            if (!response.Item) return null;
+            const contentRequest = DynamoDbContentRequestSchema.parse(response.Item);
+            return this.mapContentRequest(contentRequest);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve content request.");
         }
     };
 
-    getAllGeneratedContentByRequest = async (input: DynamoDbGetAllGeneratedContentByRequestInput) => {
-        const { userId, contentRequestFullId } = input;
+    getAllGeneratedContentByRequest = async (
+        input: DynamoDbGetAllGeneratedContentByRequestInput,
+    ): Promise<GeneratedContentPiece[]> => {
+        const { userId, contentRequestId } = input;
 
         const command = new QueryCommand({
             TableName: this.appDataTableName,
             KeyConditionExpression: "PK = :pk AND begins_with(SK, :skPrefix)",
             ExpressionAttributeValues: {
-                ":pk": `u#${userId}#${contentRequestFullId}`,
+                ":pk": `u#${userId}#cr#${contentRequestId}#gc`,
                 ":skPrefix": "gc#",
             },
         });
 
         try {
             const response = await this.docClient.send(command);
-            return response.Items;
+            if (!response.Items) return [];
+            const generatedContent = DynamoDbGeneratedContentPieceListSchema.parse(response.Items);
+            return generatedContent.map((gc) => this.mapGeneratedContentPiece(gc));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve generated content.");
         }
     };
 
-    getPostedContent = async (input: DynamoDbGetPostedContentInput) => {
+    getPostedContent = async (input: DynamoDbGetPostedContentInput): Promise<ContentPiece[]> => {
         const { userId } = input;
 
         const command = new QueryCommand({
@@ -246,20 +271,24 @@ class DynamoDbService {
 
         try {
             const response = await this.docClient.send(command);
-            return response.Items;
+            if (!response.Items) return [];
+            const postedContent = DynamoDbPostedContentPieceListSchema.parse(response.Items);
+            return postedContent.map((pc) => this.mapContentPiece(pc));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve posted content.");
         }
     };
 
-    createGeneratedContentPieces = async (input: DynamoDbCreateGeneratedContentPiecesInput) => {
-        const { userId, contentRequestFullId, contentFormat, generatedContent } = input;
+    createGeneratedContentPieces = async (
+        input: DynamoDbCreateGeneratedContentPiecesInput,
+    ): Promise<GeneratedContentPiece[]> => {
+        const { userId, contentRequestId, contentFormat, generatedContent } = input;
 
-        const generatedContentItems = generatedContent.map((piece) => {
+        const generatedContentItems: DynamoDbGeneratedContentPiece[] = generatedContent.map((piece) => {
             const generatedContentId = `gc#${uuidv4()}`;
             return {
-                PK: `u#${userId}#${contentRequestFullId}`,
+                PK: `u#${userId}#cr#${contentRequestId}#gc`,
                 SK: generatedContentId,
                 generatedContentId,
                 format: contentFormat,
@@ -284,43 +313,48 @@ class DynamoDbService {
 
         try {
             await this.docClient.send(command);
-            return generatedContentItems;
+            return generatedContentItems.map((gc) => this.mapGeneratedContentPiece(gc));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create existing content pieces.");
         }
     };
 
-    getGeneratedContentPiece = async (input: DynamoDbGetGeneratedContentPieceInput) => {
-        const { generatedContentFullId } = input;
+    getGeneratedContentPiece = async (
+        input: DynamoDbGetGeneratedContentPieceInput,
+    ): Promise<GeneratedContentPiece | null> => {
+        const { generatedContentId } = input;
 
         const command = new QueryCommand({
             TableName: this.appDataTableName,
             IndexName: this.generatedContentGsiName,
             KeyConditionExpression: "generatedContentId = :generatedContentId",
             ExpressionAttributeValues: {
-                ":generatedContentId": generatedContentFullId,
+                ":generatedContentId": `gc#${generatedContentId}`,
             },
         });
 
         try {
             const response = await this.docClient.send(command);
-            if (!response.Items || response.Items.length === 0) return undefined;
-            return response.Items[0];
+            if (!response.Items || response.Items.length === 0) return null;
+            const generatedContent = DynamoDbGeneratedContentPieceSchema.parse(response.Items[0]);
+            return this.mapGeneratedContentPiece(generatedContent);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve generated content piece.");
         }
     };
 
-    updateIsContentRequestProcessed = async (input: DynamoDbUpdateIsContentRequestProcessedInput) => {
-        const { userId, contentRequestFullId, isRequestProcessed } = input;
+    updateIsContentRequestProcessed = async (
+        input: DynamoDbUpdateIsContentRequestProcessedInput,
+    ): Promise<ContentRequest> => {
+        const { userId, contentRequestId, isRequestProcessed } = input;
 
         const command = new UpdateCommand({
             TableName: this.appDataTableName,
             Key: {
-                PK: `u#${userId}`,
-                SK: contentRequestFullId,
+                PK: `u#${userId}#cr`,
+                SK: `cr#${contentRequestId}`,
             },
             UpdateExpression: "SET isRequestProcessed = :isRequestProcessed",
             ExpressionAttributeValues: {
@@ -331,12 +365,55 @@ class DynamoDbService {
 
         try {
             const response = await this.docClient.send(command);
-            return response.Attributes;
+            const contentRequest = DynamoDbContentRequestSchema.parse(response.Attributes);
+            return this.mapContentRequest(contentRequest);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to update content request processed status.");
         }
     };
-}
 
-export default DynamoDbService;
+    private mapUserProfile = (profile: DynamoDbUserProfile): UserProfile => {
+        return {
+            userId: profile.PK.split("#")[1],
+            fullName: profile.fullName,
+            brandThemes: profile.brandThemes,
+            toneOfVoice: profile.toneOfVoice,
+            targetAudience: profile.targetAudience,
+            contentGoals: profile.contentGoals,
+            brandSummary: profile.brandSummary,
+        };
+    };
+
+    private mapContentPiece = (piece: DynamoDbPostedContentPiece): ContentPiece => {
+        return {
+            id: piece.SK.split("#")[3],
+            format: piece.SK.split("#")[1],
+            content: piece.content,
+        };
+    };
+
+    private mapContentRequest = (cr: DynamoDbContentRequest): ContentRequest => {
+        return {
+            id: cr.SK.split("#")[1],
+            ideaContext: cr.ideaContext,
+            contentFormat: cr.contentFormat,
+            contentPiecesCount: cr.contentPiecesCount,
+            conciseIdeaContext: cr.conciseIdeaContext,
+            isRequestProcessed: cr.isRequestProcessed,
+            createdAt: cr.createdAt,
+        };
+    };
+
+    private mapGeneratedContentPiece = (piece: DynamoDbGeneratedContentPiece): GeneratedContentPiece => {
+        return {
+            id: piece.generatedContentId.split("#")[1],
+            format: piece.format,
+            content: piece.content,
+            idea: piece.idea,
+            initialLlmContent: piece.initialLlmContent,
+            markedAsPosted: piece.markedAsPosted,
+            userId: piece.PK.split("#")[1],
+        };
+    };
+}

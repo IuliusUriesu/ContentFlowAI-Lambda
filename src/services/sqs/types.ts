@@ -1,35 +1,24 @@
 import { z } from "zod";
-import { BrandDetailsSchema } from "../../models/BrandDetails";
-import { ContentPieceSchema } from "../../models/ContentPiece";
-import { ContentRequestSchema } from "../../models/ContentRequest";
+import { BrandDetailsDtoSchema } from "../../models/dto/BrandDetailsDto";
+import { ContentPieceDtoSchema } from "../../models/dto/ContentPieceDto";
+import { ContentRequestDtoSchema } from "../../models/dto/ContentRequestDto";
 
-export interface SqsSendBrandSummaryRequestMessageInput {
-    message: SqsBrandSummaryRequestMessage;
+export interface SqsSendMessageInput<T> {
+    message: T;
     queueUrl: string;
 }
 
 export const SqsBrandSummaryRequestMessageSchema = z.object({
     userId: z.string(),
-    brandDetails: BrandDetailsSchema,
-    existingContent: z.array(ContentPieceSchema),
+    brandDetails: BrandDetailsDtoSchema,
+    existingContent: z.array(ContentPieceDtoSchema),
 });
-
-export type SqsBrandSummaryRequestMessage = z.infer<typeof SqsBrandSummaryRequestMessageSchema>;
-
-export interface SqsSendContentRequestMessageInput {
-    message: SqsContentRequestMessage;
-    queueUrl: string;
-}
 
 export const SqsContentRequestMessageSchema = z.object({
     userId: z.string(),
-    contentRequestFullId: z.string(),
-    contentRequest: ContentRequestSchema,
+    contentRequestId: z.string(),
+    contentRequest: ContentRequestDtoSchema,
 });
 
+export type SqsBrandSummaryRequestMessage = z.infer<typeof SqsBrandSummaryRequestMessageSchema>;
 export type SqsContentRequestMessage = z.infer<typeof SqsContentRequestMessageSchema>;
-
-export interface SqsSendMessageInput {
-    message: string;
-    queueUrl: string;
-}

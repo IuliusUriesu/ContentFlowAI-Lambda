@@ -1,11 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { BadRequestError, getEnvVariable } from "../../utils/utils";
-import DynamoDbService from "../../services/dynamodb/DynamoDbService";
-import SqsService from "../../services/sqs/SqsService";
+import { getEnvVariable } from "../../utils/utils";
 import { errorResponse } from "../helpers/errorResponse";
 import { successResponse } from "../helpers/successResponse";
-import { BrandDetails } from "../../models/BrandDetails";
-import { ContentPiece } from "../../models/ContentPiece";
+import { CreateUserProfileBodySchema } from "../../models/api/CreateUserProfileBody";
+import { BrandDetailsDto } from "../../models/dto/BrandDetailsDto";
+import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
+import DynamoDbServiceProvider from "../../services/dynamodb";
+import SqsServiceProvider from "../../services/sqs";
 
 const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -23,9 +24,6 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         return errorResponse(event, 400, "Request body is empty.");
     }
 
-    const dynamoDbService = new DynamoDbService();
-    const sqsService = new SqsService();
-
     let body;
     try {
         body = JSON.parse(event.body);
@@ -33,14 +31,18 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         return errorResponse(event, 400, "Request body is invalid JSON.");
     }
 
-    let brandDetails: BrandDetails;
-    try {
-        brandDetails = extractBrandDetails(body);
-    } catch (error) {
-        return errorResponse(event, 400, (error as Error).message);
+    const parsedBody = CreateUserProfileBodySchema.safeParse(body);
+    if (!parsedBody.success) {
+        const issues = parsedBody.error.issues;
+        const errorMessage = issues.length > 0 ? issues[0].message : "Request body is invalid.";
+        return errorResponse(event, 400, errorMessage);
     }
 
-    const existingContent = extractExistingContent(body);
+    const brandDetails: BrandDetailsDto = parsedBody.data.brandDetails;
+    const existingContent: ContentPieceDto[] = parsedBody.data.existingContent;
+
+    const dynamoDbService = DynamoDbServiceProvider.getService();
+    const sqsService = SqsServiceProvider.getService();
 
     const createUserProfilePromise = dynamoDbService.createUserProfile({
         userId: sub,
@@ -73,50 +75,6 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         console.log(error);
         return errorResponse(event, 500, "Internal server error");
     }
-};
-
-const extractBrandDetails = (body: any): BrandDetails => {
-    const brandDetails = body.brandDetails;
-    if (!brandDetails) {
-        throw new BadRequestError("Brand details are missing.");
-    }
-
-    const { brandThemes, toneOfVoice, targetAudience, contentGoals } = brandDetails;
-
-    if (!brandThemes || typeof brandThemes !== "string") {
-        throw new BadRequestError("Required field 'brandThemes' is missing or invalid.");
-    }
-
-    if (!toneOfVoice || typeof toneOfVoice !== "string") {
-        throw new BadRequestError("Required field 'toneOfVoice' is missing or invalid.");
-    }
-
-    if (!targetAudience || typeof targetAudience !== "string") {
-        throw new BadRequestError("Required field 'targetAudience' is missing or invalid.");
-    }
-
-    if (!contentGoals || typeof contentGoals !== "string") {
-        throw new BadRequestError("Required field 'contentGoals' is missing or invalid.");
-    }
-
-    return { brandThemes, toneOfVoice, targetAudience, contentGoals };
-};
-
-const extractExistingContent = (body: any): ContentPiece[] => {
-    const existingContent = body.existingContent;
-    if (!existingContent) return [];
-    if (!Array.isArray(existingContent)) return [];
-
-    const existingContentPieces: ContentPiece[] = [];
-    for (let i = 0; i < existingContent.length; i++) {
-        const piece = existingContent[i];
-        const { format, content } = piece;
-        if (format && content && typeof format === "string" && typeof content === "string") {
-            existingContentPieces.push({ format, content });
-        }
-    }
-
-    return existingContentPieces;
 };
 
 export default createUserProfile;

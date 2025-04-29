@@ -1,21 +1,21 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent, SQSHandler } from "aws-lambda";
 import { SqsBrandSummaryRequestMessageSchema } from "../../services/sqs/types";
-import { BrandDetails } from "../../models/BrandDetails";
-import { ContentPiece } from "../../models/ContentPiece";
-import AnthropicApiService from "../../services/anthropic-api/AnthropicApiService";
-import DynamoDbService from "../../services/dynamodb/DynamoDbService";
+import { BrandDetailsDto } from "../../models/dto/BrandDetailsDto";
+import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
+import DynamoDbServiceProvider from "../../services/dynamodb";
+import AnthropicApiServiceProvider from "../../services/anthropic-api";
 
 const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const batchItemFailures: SQSBatchItemFailure[] = [];
-
-    const anthropicApiService = new AnthropicApiService();
-    const dynamoDbService = new DynamoDbService();
 
     const claudeResponsePromises: {
         messageId: string;
         userId: string;
         claudeResponsePromise: Promise<string>;
     }[] = [];
+
+    const dynamoDbService = DynamoDbServiceProvider.getService();
+    const anthropicApiService = AnthropicApiServiceProvider.getService();
 
     for (const record of event.Records) {
         let body: unknown;
@@ -55,7 +55,7 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
     return { batchItemFailures };
 };
 
-const createBrandSummaryPrompt = (brandDetails: BrandDetails, existingContent: ContentPiece[]): string => {
+const createBrandSummaryPrompt = (brandDetails: BrandDetailsDto, existingContent: ContentPieceDto[]): string => {
     const brandDetailsXml =
         "<brand_details>\n" +
         `<brand_themes>${brandDetails.brandThemes}</brand_themes>\n` +

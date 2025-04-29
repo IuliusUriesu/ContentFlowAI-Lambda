@@ -1,25 +1,26 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent, SQSHandler } from "aws-lambda";
 import { SqsContentRequestMessageSchema } from "../../services/sqs/types";
-import DynamoDbService from "../../services/dynamodb/DynamoDbService";
-import { ContentRequest } from "../../models/ContentRequest";
-import { ContentPiece } from "../../models/ContentPiece";
 import { shuffleArray } from "../../utils/utils";
-import AnthropicApiService from "../../services/anthropic-api/AnthropicApiService";
-import { GeneratedContentPiece } from "../../models/GeneratedContentPiece";
+import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
+import { ContentRequestDto } from "../../models/dto/ContentRequestDto";
+import { GeneratedContentPieceDto } from "../../models/dto/GeneratedContentPieceDto";
+import { ContentPiece } from "../../models/domain/ContentPiece";
+import DynamoDbServiceProvider from "../../services/dynamodb";
+import AnthropicApiServiceProvider from "../../services/anthropic-api";
 
 const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const batchItemFailures: SQSBatchItemFailure[] = [];
 
-    const dynamoDbService = new DynamoDbService();
-    const anthropicApiService = new AnthropicApiService();
-
     const claudeResponsePromises: {
         messageId: string;
         userId: string;
-        contentRequestFullId: string;
+        contentRequestId: string;
         contentFormat: string;
         claudeResponsePromise: Promise<string>;
     }[] = [];
+
+    const dynamoDbService = DynamoDbServiceProvider.getService();
+    const anthropicApiService = AnthropicApiServiceProvider.getService();
 
     for (const record of event.Records) {
         let body: unknown;
@@ -27,25 +28,20 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
             body = JSON.parse(record.body);
             const message = SqsContentRequestMessageSchema.parse(body);
 
-            const { userId, contentRequestFullId, contentRequest } = message;
+            const { userId, contentRequestId, contentRequest } = message;
 
             const userRequest = await dynamoDbService.getContentRequest({
                 userId,
-                contentRequestFullId,
+                contentRequestId,
             });
 
             if (userRequest && userRequest.isRequestProcessed === true) {
-                console.log(`Request ${contentRequestFullId} is already processed. Skipping record...`);
+                console.log(`Request ${contentRequestId} is already processed. Skipping record...`);
                 continue;
             }
 
-            const userProfilePromise = dynamoDbService.getUserProfile({ userId });
-            const postedContentPromise = dynamoDbService.getPostedContent({ userId });
-
-            const userProfile = await userProfilePromise;
-            let postedContent = await postedContentPromise;
-
-            if (!postedContent) postedContent = [];
+            const userProfile = await dynamoDbService.getUserProfile({ userId });
+            const postedContent = await dynamoDbService.getPostedContent({ userId });
 
             if (!userProfile || typeof userProfile.brandSummary !== "string") {
                 throw new Error("Brand summary is missing.");
@@ -58,7 +54,7 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
             claudeResponsePromises.push({
                 messageId: record.messageId,
                 userId,
-                contentRequestFullId,
+                contentRequestId,
                 contentFormat: contentRequest.contentFormat,
                 claudeResponsePromise,
             });
@@ -69,7 +65,7 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
     }
 
     for (const promise of claudeResponsePromises) {
-        const { userId, contentRequestFullId, contentFormat, claudeResponsePromise, messageId } = promise;
+        const { userId, contentRequestId, contentFormat, claudeResponsePromise, messageId } = promise;
 
         try {
             const claudeResponse = await claudeResponsePromise;
@@ -77,14 +73,14 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
 
             await dynamoDbService.createGeneratedContentPieces({
                 userId,
-                contentRequestFullId,
+                contentRequestId,
                 contentFormat,
                 generatedContent,
             });
 
             await dynamoDbService.updateIsContentRequestProcessed({
                 userId,
-                contentRequestFullId,
+                contentRequestId,
                 isRequestProcessed: true,
             });
         } catch (error) {
@@ -100,21 +96,19 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
     return { batchItemFailures };
 };
 
-const selectContent = (postedContent: Record<string, any>[], contentRequestFormat: string): ContentPiece[] => {
+const selectContent = (postedContent: ContentPiece[], contentRequestFormat: string): ContentPieceDto[] => {
     let limit = 10;
-    let sameFormatContent: ContentPiece[] = [];
-    let differentFormatContent: ContentPiece[] = [];
-    const selectedContent: ContentPiece[] = [];
+    let sameFormatContent: ContentPieceDto[] = [];
+    let differentFormatContent: ContentPieceDto[] = [];
+    const selectedContent: ContentPieceDto[] = [];
 
     for (const contentPiece of postedContent) {
-        if (typeof contentPiece.SK !== "string" || typeof contentPiece.content !== "string") continue;
-        const splitSortKey = contentPiece.SK.split("#");
-        const contentPieceFormat = splitSortKey[1];
+        const { format, content } = contentPiece;
 
-        if (contentPieceFormat === contentRequestFormat) {
-            sameFormatContent.push({ format: contentRequestFormat, content: contentPiece.content });
+        if (format === contentRequestFormat) {
+            sameFormatContent.push({ format: contentRequestFormat, content });
         } else {
-            differentFormatContent.push({ format: contentPieceFormat, content: contentPiece.content });
+            differentFormatContent.push({ format, content });
         }
     }
 
@@ -137,8 +131,8 @@ const selectContent = (postedContent: Record<string, any>[], contentRequestForma
 
 const createContentRequestPrompt = (
     brandSummary: string,
-    existingContent: ContentPiece[],
-    contentRequest: ContentRequest,
+    existingContent: ContentPieceDto[],
+    contentRequest: ContentRequestDto,
 ): string => {
     let existingContentXml = "<existing_content>\n";
 
@@ -195,8 +189,8 @@ const createContentRequestPrompt = (
     return prompt;
 };
 
-const extractGeneratedContentPieces = (claudeResponse: string): GeneratedContentPiece[] => {
-    const generatedContentPieces: GeneratedContentPiece[] = [];
+const extractGeneratedContentPieces = (claudeResponse: string): GeneratedContentPieceDto[] => {
+    const generatedContentPieces: GeneratedContentPieceDto[] = [];
 
     const contentPieceRegex = /<content_piece>(.*?)<\/content_piece>/gs;
     const allMatches = [...claudeResponse.matchAll(contentPieceRegex)];
