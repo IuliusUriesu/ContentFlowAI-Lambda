@@ -204,7 +204,9 @@ export class DynamoDbService {
             const response = await this.docClient.send(command);
             if (!response.Items) return [];
             const contentRequests = DynamoDbContentRequestListSchema.parse(response.Items);
-            return contentRequests.map((cr) => this.mapContentRequest(cr));
+            return contentRequests
+                .map((cr) => this.mapContentRequest(cr))
+                .sort((cr1, cr2) => cr2.createdAt - cr1.createdAt);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve content requests.");
