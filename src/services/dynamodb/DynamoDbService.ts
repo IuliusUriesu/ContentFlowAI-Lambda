@@ -325,7 +325,7 @@ export class DynamoDbService {
     getGeneratedContentPiece = async (
         input: DynamoDbGetGeneratedContentPieceInput,
     ): Promise<GeneratedContentPiece | null> => {
-        const { generatedContentId } = input;
+        const { userId, generatedContentId } = input;
 
         const command = new QueryCommand({
             TableName: this.appDataTableName,
@@ -340,6 +340,8 @@ export class DynamoDbService {
             const response = await this.docClient.send(command);
             if (!response.Items || response.Items.length === 0) return null;
             const generatedContent = DynamoDbGeneratedContentPieceSchema.parse(response.Items[0]);
+            const generatedContentUserId = generatedContent.PK.split("#")[1];
+            if (userId !== generatedContentUserId) return null;
             return this.mapGeneratedContentPiece(generatedContent);
         } catch (error) {
             console.log(error);
@@ -415,7 +417,6 @@ export class DynamoDbService {
             idea: piece.idea,
             initialLlmContent: piece.initialLlmContent,
             markedAsPosted: piece.markedAsPosted,
-            userId: piece.PK.split("#")[1],
         };
     };
 }

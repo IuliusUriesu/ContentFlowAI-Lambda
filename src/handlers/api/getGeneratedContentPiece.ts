@@ -19,14 +19,11 @@ const getGeneratedContentPiece = async (event: APIGatewayProxyEvent): Promise<AP
 
     try {
         const generatedContentPiece = await dynamoDbService.getGeneratedContentPiece({
+            userId: sub,
             generatedContentId,
         });
 
         if (!generatedContentPiece) {
-            return errorResponse(event, 404, "Generated content piece not found.");
-        }
-
-        if (generatedContentPiece.userId !== sub) {
             return errorResponse(event, 404, "Generated content piece not found.");
         }
 

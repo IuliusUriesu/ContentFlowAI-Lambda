@@ -57,6 +57,7 @@ export interface DynamoDbCreateGeneratedContentPiecesInput {
 }
 
 export interface DynamoDbGetGeneratedContentPieceInput {
+    userId: string;
     generatedContentId: string;
 }
 
