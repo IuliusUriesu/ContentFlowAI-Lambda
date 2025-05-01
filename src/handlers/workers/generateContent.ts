@@ -1,9 +1,9 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent, SQSHandler } from "aws-lambda";
 import { SqsContentRequestMessageSchema } from "../../services/sqs/types";
 import { shuffleArray } from "../../utils/utils";
-import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
-import { ContentRequestDto } from "../../models/dto/ContentRequestDto";
-import { GeneratedContentPieceDto } from "../../models/dto/GeneratedContentPieceDto";
+import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
+import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDto";
+import { GeneratedContentPieceCreateDto } from "../../models/dto/GeneratedContentPieceCreateDto";
 import { ContentPiece } from "../../models/domain/ContentPiece";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import AnthropicApiServiceProvider from "../../services/anthropic-api";
@@ -96,11 +96,11 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
     return { batchItemFailures };
 };
 
-const selectContent = (postedContent: ContentPiece[], contentRequestFormat: string): ContentPieceDto[] => {
+const selectContent = (postedContent: ContentPiece[], contentRequestFormat: string): ContentPieceCreateDto[] => {
     let limit = 10;
-    let sameFormatContent: ContentPieceDto[] = [];
-    let differentFormatContent: ContentPieceDto[] = [];
-    const selectedContent: ContentPieceDto[] = [];
+    let sameFormatContent: ContentPieceCreateDto[] = [];
+    let differentFormatContent: ContentPieceCreateDto[] = [];
+    const selectedContent: ContentPieceCreateDto[] = [];
 
     for (const contentPiece of postedContent) {
         const { format, content } = contentPiece;
@@ -131,8 +131,8 @@ const selectContent = (postedContent: ContentPiece[], contentRequestFormat: stri
 
 const createContentRequestPrompt = (
     brandSummary: string,
-    existingContent: ContentPieceDto[],
-    contentRequest: ContentRequestDto,
+    existingContent: ContentPieceCreateDto[],
+    contentRequest: ContentRequestCreateDto,
 ): string => {
     let existingContentXml = "<existing_content>\n";
 
@@ -189,8 +189,8 @@ const createContentRequestPrompt = (
     return prompt;
 };
 
-const extractGeneratedContentPieces = (claudeResponse: string): GeneratedContentPieceDto[] => {
-    const generatedContentPieces: GeneratedContentPieceDto[] = [];
+const extractGeneratedContentPieces = (claudeResponse: string): GeneratedContentPieceCreateDto[] => {
+    const generatedContentPieces: GeneratedContentPieceCreateDto[] = [];
 
     const contentPieceRegex = /<content_piece>(.*?)<\/content_piece>/gs;
     const allMatches = [...claudeResponse.matchAll(contentPieceRegex)];

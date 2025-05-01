@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ContentRequestDtoSchema } from "../dto/ContentRequestDto";
+import { ContentRequestCreateDtoSchema } from "../dto/ContentRequestCreateDto";
 
-export const CreateContentRequestBodySchema = ContentRequestDtoSchema;
+export const CreateContentRequestBodySchema = ContentRequestCreateDtoSchema;
 
 export type CreateContentRequestBody = z.infer<typeof CreateContentRequestBodySchema>;

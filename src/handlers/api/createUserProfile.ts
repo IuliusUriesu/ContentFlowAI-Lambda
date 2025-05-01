@@ -3,8 +3,8 @@ import { getEnvVariable } from "../../utils/utils";
 import { errorResponse } from "../helpers/errorResponse";
 import { successResponse } from "../helpers/successResponse";
 import { CreateUserProfileBodySchema } from "../../models/api/CreateUserProfileBody";
-import { BrandDetailsDto } from "../../models/dto/BrandDetailsDto";
-import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
+import { BrandDetailsCreateDto } from "../../models/dto/BrandDetailsCreateDto";
+import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import SqsServiceProvider from "../../services/sqs";
 
@@ -38,8 +38,8 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         return errorResponse(event, 400, errorMessage);
     }
 
-    const brandDetails: BrandDetailsDto = parsedBody.data.brandDetails;
-    const existingContent: ContentPieceDto[] = parsedBody.data.existingContent;
+    const brandDetails: BrandDetailsCreateDto = parsedBody.data.brandDetails;
+    const existingContent: ContentPieceCreateDto[] = parsedBody.data.existingContent;
 
     const dynamoDbService = DynamoDbServiceProvider.getService();
     const sqsService = SqsServiceProvider.getService();

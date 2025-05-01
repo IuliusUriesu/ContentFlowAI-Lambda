@@ -5,6 +5,7 @@ import getAllContentRequests from "./handlers/api/getAllContentRequests";
 import getContentRequest from "./handlers/api/getContentRequest";
 import getAllGeneratedContent from "./handlers/api/getAllGeneratedContent";
 import getGeneratedContentPiece from "./handlers/api/getGeneratedContentPiece";
+import editGeneratedContentPiece from "./handlers/api/editGeneratedContentPiece";
 import writeBrandSummary from "./handlers/workers/writeBrandSummary";
 import generateContent from "./handlers/workers/generateContent";
 
@@ -16,6 +17,7 @@ exports.getAllContentRequests = getAllContentRequests;
 exports.getContentRequest = getContentRequest;
 exports.getAllGeneratedContent = getAllGeneratedContent;
 exports.getGeneratedContentPiece = getGeneratedContentPiece;
+exports.editGeneratedContentPiece = editGeneratedContentPiece;
 
 // Worker Handlers
 exports.writeBrandSummary = writeBrandSummary;

@@ -3,7 +3,7 @@ import { successResponse } from "../helpers/successResponse";
 import { errorResponse } from "../helpers/errorResponse";
 import { getEnvVariable, LlmResponseParsingError } from "../../utils/utils";
 import { CreateContentRequestBodySchema } from "../../models/api/CreateContentRequestBody";
-import { ContentRequestDto } from "../../models/dto/ContentRequestDto";
+import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import AnthropicApiServiceProvider from "../../services/anthropic-api";
 import SqsServiceProvider from "../../services/sqs";
@@ -33,7 +33,7 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
         return errorResponse(event, 400, errorMessage);
     }
 
-    const contentRequestDto: ContentRequestDto = parsedBody.data;
+    const contentRequestDto: ContentRequestCreateDto = parsedBody.data;
 
     const dynamoDbService = DynamoDbServiceProvider.getService();
     const anthropicApiService = AnthropicApiServiceProvider.getService();

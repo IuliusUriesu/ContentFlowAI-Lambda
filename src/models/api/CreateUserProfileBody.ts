@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { BrandDetailsDtoSchema } from "../dto/BrandDetailsDto";
-import { ContentPieceDtoSchema } from "../dto/ContentPieceDto";
+import { BrandDetailsCreateDtoSchema } from "../dto/BrandDetailsCreateDto";
+import { ContentPieceCreateDtoSchema } from "../dto/ContentPieceCreateDto";
 
 const existingContentError = "Required field 'existingContent' is missing or invalid.";
 
 export const CreateUserProfileBodySchema = z.object({
-    brandDetails: BrandDetailsDtoSchema,
-    existingContent: z.array(ContentPieceDtoSchema, {
+    brandDetails: BrandDetailsCreateDtoSchema,
+    existingContent: z.array(ContentPieceCreateDtoSchema, {
         required_error: existingContentError,
         invalid_type_error: existingContentError,
     }),

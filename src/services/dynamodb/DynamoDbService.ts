@@ -32,6 +32,7 @@ import {
     DynamoDbUserProfileSchema,
     DynamoDbPostedContentPieceListSchema,
     DynamoDbGeneratedContentPieceSchema,
+    DynamoDbUpdateGeneratedContentPieceContentInput,
 } from "./types";
 import { UserProfile } from "../../models/domain/UserProfile";
 import { ContentPiece } from "../../models/domain/ContentPiece";
@@ -325,7 +326,7 @@ export class DynamoDbService {
     getGeneratedContentPiece = async (
         input: DynamoDbGetGeneratedContentPieceInput,
     ): Promise<GeneratedContentPiece | null> => {
-        const { userId, generatedContentId } = input;
+        const { generatedContentId } = input;
 
         const command = new QueryCommand({
             TableName: this.appDataTableName,
@@ -340,12 +341,38 @@ export class DynamoDbService {
             const response = await this.docClient.send(command);
             if (!response.Items || response.Items.length === 0) return null;
             const generatedContent = DynamoDbGeneratedContentPieceSchema.parse(response.Items[0]);
-            const generatedContentUserId = generatedContent.PK.split("#")[1];
-            if (userId !== generatedContentUserId) return null;
             return this.mapGeneratedContentPiece(generatedContent);
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve generated content piece.");
+        }
+    };
+
+    updateGeneratedContentPieceContent = async (
+        input: DynamoDbUpdateGeneratedContentPieceContentInput,
+    ): Promise<GeneratedContentPiece> => {
+        const { userId, contentRequestId, generatedContentId, content } = input;
+
+        const command = new UpdateCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}#cr#${contentRequestId}#gc`,
+                SK: `gc#${generatedContentId}`,
+            },
+            UpdateExpression: "SET content = :content",
+            ExpressionAttributeValues: {
+                ":content": content,
+            },
+            ReturnValues: "ALL_NEW",
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            const generatedContent = DynamoDbGeneratedContentPieceSchema.parse(response.Attributes);
+            return this.mapGeneratedContentPiece(generatedContent);
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to update generated content piece.");
         }
     };
 
@@ -417,6 +444,8 @@ export class DynamoDbService {
             idea: piece.idea,
             initialLlmContent: piece.initialLlmContent,
             markedAsPosted: piece.markedAsPosted,
+            userId: piece.PK.split("#")[1],
+            contentRequestId: piece.PK.split("#")[3],
         };
     };
 }

@@ -1,19 +1,19 @@
 import { z } from "zod";
-import { BrandDetailsDto } from "../../models/dto/BrandDetailsDto";
-import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
-import { ContentRequestDto } from "../../models/dto/ContentRequestDto";
-import { GeneratedContentPieceDto } from "../../models/dto/GeneratedContentPieceDto";
+import { BrandDetailsCreateDto } from "../../models/dto/BrandDetailsCreateDto";
+import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
+import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDto";
+import { GeneratedContentPieceCreateDto } from "../../models/dto/GeneratedContentPieceCreateDto";
 
 // Function Inputs
 export interface DynamoDbCreateUserProfileInput {
     userId: string;
     fullName: string;
-    brandDetails: BrandDetailsDto;
+    brandDetails: BrandDetailsCreateDto;
 }
 
 export interface DynamoDbCreateExistingContentPiecesInput {
     userId: string;
-    existingContent: ContentPieceDto[];
+    existingContent: ContentPieceCreateDto[];
 }
 
 export interface DynamoDbUpdateBrandSummaryInput {
@@ -27,7 +27,7 @@ export interface DynamoDbGetUserProfileInput {
 
 export interface DynamoDbCreateContentRequestInput {
     userId: string;
-    contentRequest: ContentRequestDto;
+    contentRequest: ContentRequestCreateDto;
     conciseIdeaContext: string;
 }
 
@@ -53,12 +53,18 @@ export interface DynamoDbCreateGeneratedContentPiecesInput {
     userId: string;
     contentRequestId: string;
     contentFormat: string;
-    generatedContent: GeneratedContentPieceDto[];
+    generatedContent: GeneratedContentPieceCreateDto[];
 }
 
 export interface DynamoDbGetGeneratedContentPieceInput {
-    userId: string;
     generatedContentId: string;
+}
+
+export interface DynamoDbUpdateGeneratedContentPieceContentInput {
+    userId: string;
+    contentRequestId: string;
+    generatedContentId: string;
+    content: string;
 }
 
 export interface DynamoDbUpdateIsContentRequestProcessedInput {

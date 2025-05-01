@@ -1,7 +1,7 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent, SQSHandler } from "aws-lambda";
 import { SqsBrandSummaryRequestMessageSchema } from "../../services/sqs/types";
-import { BrandDetailsDto } from "../../models/dto/BrandDetailsDto";
-import { ContentPieceDto } from "../../models/dto/ContentPieceDto";
+import { BrandDetailsCreateDto } from "../../models/dto/BrandDetailsCreateDto";
+import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import AnthropicApiServiceProvider from "../../services/anthropic-api";
 
@@ -55,7 +55,10 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
     return { batchItemFailures };
 };
 
-const createBrandSummaryPrompt = (brandDetails: BrandDetailsDto, existingContent: ContentPieceDto[]): string => {
+const createBrandSummaryPrompt = (
+    brandDetails: BrandDetailsCreateDto,
+    existingContent: ContentPieceCreateDto[],
+): string => {
     const brandDetailsXml =
         "<brand_details>\n" +
         `<brand_themes>${brandDetails.brandThemes}</brand_themes>\n` +

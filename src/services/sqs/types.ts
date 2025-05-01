@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { BrandDetailsDtoSchema } from "../../models/dto/BrandDetailsDto";
-import { ContentPieceDtoSchema } from "../../models/dto/ContentPieceDto";
-import { ContentRequestDtoSchema } from "../../models/dto/ContentRequestDto";
+import { BrandDetailsCreateDtoSchema } from "../../models/dto/BrandDetailsCreateDto";
+import { ContentPieceCreateDtoSchema } from "../../models/dto/ContentPieceCreateDto";
+import { ContentRequestCreateDtoSchema } from "../../models/dto/ContentRequestCreateDto";
 
 export interface SqsSendMessageInput<T> {
     message: T;
@@ -10,14 +10,14 @@ export interface SqsSendMessageInput<T> {
 
 export const SqsBrandSummaryRequestMessageSchema = z.object({
     userId: z.string(),
-    brandDetails: BrandDetailsDtoSchema,
-    existingContent: z.array(ContentPieceDtoSchema),
+    brandDetails: BrandDetailsCreateDtoSchema,
+    existingContent: z.array(ContentPieceCreateDtoSchema),
 });
 
 export const SqsContentRequestMessageSchema = z.object({
     userId: z.string(),
     contentRequestId: z.string(),
-    contentRequest: ContentRequestDtoSchema,
+    contentRequest: ContentRequestCreateDtoSchema,
 });
 
 export type SqsBrandSummaryRequestMessage = z.infer<typeof SqsBrandSummaryRequestMessageSchema>;

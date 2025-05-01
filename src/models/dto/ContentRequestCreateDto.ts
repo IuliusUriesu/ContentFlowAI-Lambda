@@ -4,7 +4,7 @@ const ideaContextError = "Required field 'ideaContext' is missing or invalid.";
 const contentFormatError = "Required field 'contentFormat' is missing or invalid.";
 const contentPiecesCountError = "Required field 'contentPiecesCount' is missing or invalid.";
 
-export const ContentRequestDtoSchema = z.object({
+export const ContentRequestCreateDtoSchema = z.object({
     ideaContext: z.string({ required_error: ideaContextError, invalid_type_error: ideaContextError }),
     contentFormat: z.string({ required_error: contentFormatError, invalid_type_error: contentFormatError }),
     contentPiecesCount: z
@@ -14,4 +14,4 @@ export const ContentRequestDtoSchema = z.object({
         .max(20, { message: "You can request at most 20 content pieces." }),
 });
 
-export type ContentRequestDto = z.infer<typeof ContentRequestDtoSchema>;
+export type ContentRequestCreateDto = z.infer<typeof ContentRequestCreateDtoSchema>;
