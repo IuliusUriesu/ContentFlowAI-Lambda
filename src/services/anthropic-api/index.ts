@@ -1,11 +1,7 @@
 import { AnthropicApiService } from "./AnthropicApiService";
 
 export default class AnthropicApiServiceProvider {
-    private static anthropicApiService: AnthropicApiService | null;
-
-    constructor() {
-        AnthropicApiServiceProvider.anthropicApiService = null;
-    }
+    private static anthropicApiService: AnthropicApiService | null = null;
 
     static getService(): AnthropicApiService {
         if (!AnthropicApiServiceProvider.anthropicApiService) {

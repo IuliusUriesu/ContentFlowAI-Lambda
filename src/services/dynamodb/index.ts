@@ -1,11 +1,7 @@
 import { DynamoDbService } from "./DynamoDbService";
 
 export default class DynamoDbServiceProvider {
-    private static dynamoDbService: DynamoDbService | null;
-
-    constructor() {
-        DynamoDbServiceProvider.dynamoDbService = null;
-    }
+    private static dynamoDbService: DynamoDbService | null = null;
 
     static getService(): DynamoDbService {
         if (!DynamoDbServiceProvider.dynamoDbService) {

@@ -1,11 +1,7 @@
 import { SqsService } from "./SqsService";
 
 export default class SqsServiceProvider {
-    private static sqsService: SqsService | null;
-
-    constructor() {
-        SqsServiceProvider.sqsService = null;
-    }
+    private static sqsService: SqsService | null = null;
 
     static getService(): SqsService {
         if (!SqsServiceProvider.sqsService) {

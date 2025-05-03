@@ -6,7 +6,6 @@
         "lint": "eslint **/*.ts --ignore-pattern **/*.d.ts --fix && prettier --write **/*.ts"
     },
     "devDependencies": {
-        "@anthropic-ai/sdk": "^0.39.0",
         "@eslint/eslintrc": "^3.3.0",
         "@eslint/js": "^9.22.0",
         "@types/aws-lambda": "^8.10.147",
@@ -19,14 +18,16 @@
         "globals": "^16.0.0",
         "prettier": "^3.5.3",
         "ts-node": "^10.9.2",
-        "typescript": "~5.6.3",
-        "uuid": "^11.1.0"
+        "typescript": "~5.6.3"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.39.0",
+        "@aws-crypto/client-node": "^4.2.1",
         "@aws-sdk/client-dynamodb": "^3.767.0",
         "@aws-sdk/client-secrets-manager": "^3.758.0",
         "@aws-sdk/client-sqs": "^3.772.0",
         "@aws-sdk/lib-dynamodb": "^3.767.0",
+        "uuid": "^11.1.0",
         "zod": "^3.24.2"
     }
 }
