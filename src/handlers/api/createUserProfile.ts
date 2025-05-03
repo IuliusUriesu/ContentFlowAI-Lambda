@@ -7,6 +7,7 @@ import { BrandDetailsCreateDto } from "../../models/dto/BrandDetailsCreateDto";
 import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import SqsServiceProvider from "../../services/sqs";
+import AwsEncryptionSdkServiceProvider from "../../services/aws-encryption-sdk";
 
 const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -40,9 +41,11 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
 
     const brandDetails: BrandDetailsCreateDto = parsedBody.data.brandDetails;
     const existingContent: ContentPieceCreateDto[] = parsedBody.data.existingContent;
+    const anthropicApiKey = parsedBody.data.anthropicApiKey;
 
     const dynamoDbService = DynamoDbServiceProvider.getService();
     const sqsService = SqsServiceProvider.getService();
+    const awsEncryptionSdkService = AwsEncryptionSdkServiceProvider.getService();
 
     const createUserProfilePromise = dynamoDbService.createUserProfile({
         userId: sub,
@@ -58,6 +61,8 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
     try {
         const userProfile = await createUserProfilePromise;
         const existingContentPieces = await createExistingContentPiecesPromise;
+        const encryptedAnthropicApiKey = await awsEncryptionSdkService.encryptUserAnthropicApiKey(anthropicApiKey);
+        await dynamoDbService.createUserAnthropicApiKey({ userId: sub, encryptedAnthropicApiKey });
 
         const brandSummaryRequestQueueUrl = getEnvVariable("BRAND_SUMMARY_REQUEST_QUEUE_URL");
         await sqsService.sendBrandSummaryRequestMessage({

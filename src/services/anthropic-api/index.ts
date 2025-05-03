@@ -1,16 +1,17 @@
+import { AnthropicApiError } from "../../utils/utils";
+import AwsEncryptionSdkServiceProvider from "../aws-encryption-sdk";
+import DynamoDbServiceProvider from "../dynamodb";
 import { AnthropicApiService } from "./AnthropicApiService";
 
-export default class AnthropicApiServiceProvider {
-    private static anthropicApiService: AnthropicApiService | null = null;
+export default async function createAnthropicApiService(userId: string): Promise<AnthropicApiService> {
+    const dynamoDbService = DynamoDbServiceProvider.getService();
+    const awsEncryptionSdkService = AwsEncryptionSdkServiceProvider.getService();
 
-    static getService(): AnthropicApiService {
-        if (!AnthropicApiServiceProvider.anthropicApiService) {
-            AnthropicApiServiceProvider.anthropicApiService = AnthropicApiServiceProvider.createService();
-        }
-        return AnthropicApiServiceProvider.anthropicApiService;
+    const apiKey = await dynamoDbService.getUserAnthropicApiKey({ userId });
+    if (!apiKey) {
+        throw new AnthropicApiError("Failed to create AnthropicApiService instance: user API key not found.");
     }
 
-    private static createService(): AnthropicApiService {
-        return new AnthropicApiService();
-    }
+    const decryptedApiKey = await awsEncryptionSdkService.decryptUserAnthropicApiKey(apiKey.encryptedAnthropicApiKey);
+    return new AnthropicApiService(decryptedApiKey);
 }

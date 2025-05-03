@@ -6,7 +6,7 @@ import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDt
 import { GeneratedContentPieceCreateDto } from "../../models/dto/GeneratedContentPieceCreateDto";
 import { ContentPiece } from "../../models/domain/ContentPiece";
 import DynamoDbServiceProvider from "../../services/dynamodb";
-import AnthropicApiServiceProvider from "../../services/anthropic-api";
+import createAnthropicApiService from "../../services/anthropic-api";
 
 const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const batchItemFailures: SQSBatchItemFailure[] = [];
@@ -20,7 +20,6 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
     }[] = [];
 
     const dynamoDbService = DynamoDbServiceProvider.getService();
-    const anthropicApiService = AnthropicApiServiceProvider.getService();
 
     for (const record of event.Records) {
         let body: unknown;
@@ -29,6 +28,8 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
             const message = SqsContentRequestMessageSchema.parse(body);
 
             const { userId, contentRequestId, contentRequest } = message;
+
+            const anthropicApiService = await createAnthropicApiService(userId);
 
             const userRequest = await dynamoDbService.getContentRequest({
                 userId,

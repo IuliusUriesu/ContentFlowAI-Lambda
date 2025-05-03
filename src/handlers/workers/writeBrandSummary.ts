@@ -3,7 +3,7 @@ import { SqsBrandSummaryRequestMessageSchema } from "../../services/sqs/types";
 import { BrandDetailsCreateDto } from "../../models/dto/BrandDetailsCreateDto";
 import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
-import AnthropicApiServiceProvider from "../../services/anthropic-api";
+import createAnthropicApiService from "../../services/anthropic-api";
 
 const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const batchItemFailures: SQSBatchItemFailure[] = [];
@@ -15,21 +15,23 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
     }[] = [];
 
     const dynamoDbService = DynamoDbServiceProvider.getService();
-    const anthropicApiService = AnthropicApiServiceProvider.getService();
 
     for (const record of event.Records) {
         let body: unknown;
         try {
             body = JSON.parse(record.body);
             const message = SqsBrandSummaryRequestMessageSchema.parse(body);
+            const { userId, brandDetails, existingContent } = message;
 
-            const userProfile = await dynamoDbService.getUserProfile({ userId: message.userId });
+            const anthropicApiService = await createAnthropicApiService(userId);
+
+            const userProfile = await dynamoDbService.getUserProfile({ userId });
             if (userProfile && userProfile.brandSummary) {
-                console.log(`Brand summary already exists for user u#${message.userId}. Skipping record...`);
+                console.log(`Brand summary already exists for user u#${userId}. Skipping record...`);
                 continue;
             }
 
-            const prompt = createBrandSummaryPrompt(message.brandDetails, message.existingContent);
+            const prompt = createBrandSummaryPrompt(brandDetails, existingContent);
             const claudeResponsePromise = anthropicApiService.getClaudeResponse({ prompt, thinking: true });
             claudeResponsePromises.push({ messageId: record.messageId, userId: message.userId, claudeResponsePromise });
         } catch (error) {

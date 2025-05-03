@@ -5,12 +5,8 @@ export default class DynamoDbServiceProvider {
 
     static getService(): DynamoDbService {
         if (!DynamoDbServiceProvider.dynamoDbService) {
-            DynamoDbServiceProvider.dynamoDbService = DynamoDbServiceProvider.createService();
+            DynamoDbServiceProvider.dynamoDbService = new DynamoDbService();
         }
         return DynamoDbServiceProvider.dynamoDbService;
-    }
-
-    private static createService(): DynamoDbService {
-        return new DynamoDbService();
     }
 }

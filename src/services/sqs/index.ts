@@ -5,12 +5,8 @@ export default class SqsServiceProvider {
 
     static getService(): SqsService {
         if (!SqsServiceProvider.sqsService) {
-            SqsServiceProvider.sqsService = SqsServiceProvider.createService();
+            SqsServiceProvider.sqsService = new SqsService();
         }
         return SqsServiceProvider.sqsService;
-    }
-
-    private static createService(): SqsService {
-        return new SqsService();
     }
 }

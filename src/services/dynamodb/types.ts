@@ -25,6 +25,15 @@ export interface DynamoDbGetUserProfileInput {
     userId: string;
 }
 
+export interface DynamoDbCreateUserAnthropicApiKeyInput {
+    userId: string;
+    encryptedAnthropicApiKey: Buffer;
+}
+
+export interface DynamoDbGetUserAnthropicApiKeyInput {
+    userId: string;
+}
+
 export interface DynamoDbCreateContentRequestInput {
     userId: string;
     contentRequest: ContentRequestCreateDto;
@@ -121,6 +130,12 @@ export const DynamoDbGeneratedContentPieceSchema = z
 
 export const DynamoDbGeneratedContentPieceListSchema = z.array(DynamoDbGeneratedContentPieceSchema);
 
+export const DynamoDbUserAnthropicApiKeySchema = z.object({
+    PK: z.string().startsWith("u#"),
+    SK: z.literal("anthropic-api-key"),
+    apiKey: z.instanceof(Uint8Array),
+});
+
 export type DynamoDbUserProfile = z.infer<typeof DynamoDbUserProfileSchema>;
 export type DynamoDbPostedContentPiece = z.infer<typeof DynamoDbPostedContentPieceSchema>;
 export type DynamoDbPostedContentPieceList = z.infer<typeof DynamoDbPostedContentPieceListSchema>;
@@ -128,3 +143,4 @@ export type DynamoDbContentRequest = z.infer<typeof DynamoDbContentRequestSchema
 export type DynamoDbContentRequestList = z.infer<typeof DynamoDbContentRequestListSchema>;
 export type DynamoDbGeneratedContentPiece = z.infer<typeof DynamoDbGeneratedContentPieceSchema>;
 export type DynamoDbGeneratedContentPieceList = z.infer<typeof DynamoDbGeneratedContentPieceListSchema>;
+export type DynamoDbUserAnthropicApiKey = z.infer<typeof DynamoDbUserAnthropicApiKeySchema>;

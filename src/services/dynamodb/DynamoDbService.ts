@@ -33,11 +33,16 @@ import {
     DynamoDbPostedContentPieceListSchema,
     DynamoDbGeneratedContentPieceSchema,
     DynamoDbUpdateGeneratedContentPieceContentInput,
+    DynamoDbCreateUserAnthropicApiKeyInput,
+    DynamoDbUserAnthropicApiKey,
+    DynamoDbGetUserAnthropicApiKeyInput,
+    DynamoDbUserAnthropicApiKeySchema,
 } from "./types";
 import { UserProfile } from "../../models/domain/UserProfile";
 import { ContentPiece } from "../../models/domain/ContentPiece";
 import { ContentRequest } from "../../models/domain/ContentRequest";
 import { GeneratedContentPiece } from "../../models/domain/GeneratedContentPiece";
+import { UserAnthropicApiKey } from "../../models/domain/UserAnthropicApiKey";
 
 export class DynamoDbService {
     private docClient: DynamoDBDocumentClient;
@@ -157,6 +162,53 @@ export class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve user profile.");
+        }
+    };
+
+    createUserAnthropicApiKey = async (input: DynamoDbCreateUserAnthropicApiKeyInput): Promise<UserAnthropicApiKey> => {
+        const { userId, encryptedAnthropicApiKey } = input;
+
+        const userAnthropicApiKeyItem: DynamoDbUserAnthropicApiKey = {
+            PK: `u#${userId}`,
+            SK: "anthropic-api-key",
+            apiKey: encryptedAnthropicApiKey,
+        };
+
+        const command = new PutCommand({
+            TableName: this.appDataTableName,
+            Item: userAnthropicApiKeyItem,
+        });
+
+        try {
+            await this.docClient.send(command);
+            return this.mapUserAnthropicApiKey(userAnthropicApiKeyItem);
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to save user Anthropic API key.");
+        }
+    };
+
+    getUserAnthropicApiKey = async (
+        input: DynamoDbGetUserAnthropicApiKeyInput,
+    ): Promise<UserAnthropicApiKey | null> => {
+        const { userId } = input;
+
+        const command = new GetCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}`,
+                SK: "anthropic-api-key",
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            if (!response.Item) return null;
+            const anthropicApiKey = DynamoDbUserAnthropicApiKeySchema.parse(response.Item);
+            return this.mapUserAnthropicApiKey(anthropicApiKey);
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve user Anthropic API key.");
         }
     };
 
@@ -446,6 +498,13 @@ export class DynamoDbService {
             markedAsPosted: piece.markedAsPosted,
             userId: piece.PK.split("#")[1],
             contentRequestId: piece.PK.split("#")[3],
+        };
+    };
+
+    private mapUserAnthropicApiKey = (apiKey: DynamoDbUserAnthropicApiKey): UserAnthropicApiKey => {
+        return {
+            userId: apiKey.PK.split("#")[1],
+            encryptedAnthropicApiKey: Buffer.from(apiKey.apiKey),
         };
     };
 }

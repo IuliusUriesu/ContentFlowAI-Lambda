@@ -5,12 +5,8 @@ export default class AwsEncryptionSdkServiceProvider {
 
     static getService(): AwsEncryptionSdkService {
         if (!AwsEncryptionSdkServiceProvider.awsEncryptionSdkService) {
-            AwsEncryptionSdkServiceProvider.awsEncryptionSdkService = AwsEncryptionSdkServiceProvider.createService();
+            AwsEncryptionSdkServiceProvider.awsEncryptionSdkService = new AwsEncryptionSdkService();
         }
         return AwsEncryptionSdkServiceProvider.awsEncryptionSdkService;
-    }
-
-    private static createService(): AwsEncryptionSdkService {
-        return new AwsEncryptionSdkService();
     }
 }

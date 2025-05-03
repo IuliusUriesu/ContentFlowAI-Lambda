@@ -5,8 +5,8 @@ import { getEnvVariable, LlmResponseParsingError } from "../../utils/utils";
 import { CreateContentRequestBodySchema } from "../../models/api/CreateContentRequestBody";
 import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
-import AnthropicApiServiceProvider from "../../services/anthropic-api";
 import SqsServiceProvider from "../../services/sqs";
+import createAnthropicApiService from "../../services/anthropic-api";
 
 const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -36,10 +36,10 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
     const contentRequestDto: ContentRequestCreateDto = parsedBody.data;
 
     const dynamoDbService = DynamoDbServiceProvider.getService();
-    const anthropicApiService = AnthropicApiServiceProvider.getService();
     const sqsService = SqsServiceProvider.getService();
 
     try {
+        const anthropicApiService = await createAnthropicApiService(sub);
         const conciseIdeaContextPrompt = createConciseIdeaContextPrompt(contentRequestDto.ideaContext);
         const claudeResponse = await anthropicApiService.getClaudeResponse({ prompt: conciseIdeaContextPrompt });
         const conciseIdeaContext = extractConciseIdeaContext(claudeResponse);
