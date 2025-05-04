@@ -8,7 +8,7 @@ import createAnthropicApiService from "../../services/anthropic-api";
 const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const batchItemFailures: SQSBatchItemFailure[] = [];
 
-    const claudeResponsePromises: {
+    const messages: {
         messageId: string;
         userId: string;
         claudeResponsePromise: Promise<string>;
@@ -33,20 +33,22 @@ const writeBrandSummary: SQSHandler = async (event: SQSEvent): Promise<SQSBatchR
 
             const prompt = createBrandSummaryPrompt(brandDetails, existingContent);
             const claudeResponsePromise = anthropicApiService.getClaudeResponse({ prompt, thinking: true });
-            claudeResponsePromises.push({ messageId: record.messageId, userId: message.userId, claudeResponsePromise });
+            messages.push({ messageId: record.messageId, userId, claudeResponsePromise });
         } catch (error) {
             console.log(error);
             batchItemFailures.push({ itemIdentifier: record.messageId });
         }
     }
 
-    for (const promise of claudeResponsePromises) {
+    for (const message of messages) {
+        const { userId, claudeResponsePromise, messageId } = message;
+
         try {
-            const brandSummary = await promise.claudeResponsePromise;
-            await dynamoDbService.updateBrandSummary({ userId: promise.userId, brandSummary });
+            const brandSummary = await claudeResponsePromise;
+            await dynamoDbService.updateBrandSummary({ userId, brandSummary });
         } catch (error) {
             console.log(error);
-            batchItemFailures.push({ itemIdentifier: promise.messageId });
+            batchItemFailures.push({ itemIdentifier: messageId });
         }
     }
 

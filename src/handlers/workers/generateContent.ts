@@ -1,7 +1,6 @@
 import { SQSBatchItemFailure, SQSBatchResponse, SQSEvent, SQSHandler } from "aws-lambda";
 import { SqsContentRequestMessageSchema } from "../../services/sqs/types";
 import { shuffleArray } from "../../utils/utils";
-import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
 import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDto";
 import { GeneratedContentPieceCreateDto } from "../../models/dto/GeneratedContentPieceCreateDto";
 import { ContentPiece } from "../../models/domain/ContentPiece";
@@ -11,7 +10,7 @@ import createAnthropicApiService from "../../services/anthropic-api";
 const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchResponse> => {
     const batchItemFailures: SQSBatchItemFailure[] = [];
 
-    const claudeResponsePromises: {
+    const messages: {
         messageId: string;
         userId: string;
         contentRequestId: string;
@@ -42,17 +41,18 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
             }
 
             const userProfile = await dynamoDbService.getUserProfile({ userId });
-            const postedContent = await dynamoDbService.getPostedContent({ userId });
-
             if (!userProfile || typeof userProfile.brandSummary !== "string") {
                 throw new Error("Brand summary is missing.");
             }
 
-            const existingContent = selectContent(postedContent, contentRequest.contentFormat);
+            const existingContent = await dynamoDbService.getAllExistingContent({ userId });
+            const postedContent = await dynamoDbService.getAllPostedContent({ userId });
 
-            const prompt = createContentRequestPrompt(userProfile.brandSummary, existingContent, contentRequest);
+            const selectedContent = selectContent([...existingContent, ...postedContent], contentRequest.contentFormat);
+
+            const prompt = createContentRequestPrompt(userProfile.brandSummary, selectedContent, contentRequest);
             const claudeResponsePromise = anthropicApiService.getClaudeResponse({ prompt, thinking: true });
-            claudeResponsePromises.push({
+            messages.push({
                 messageId: record.messageId,
                 userId,
                 contentRequestId,
@@ -65,8 +65,8 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
         }
     }
 
-    for (const promise of claudeResponsePromises) {
-        const { userId, contentRequestId, contentFormat, claudeResponsePromise, messageId } = promise;
+    for (const message of messages) {
+        const { userId, contentRequestId, contentFormat, claudeResponsePromise, messageId } = message;
 
         try {
             const claudeResponse = await claudeResponsePromise;
@@ -97,19 +97,19 @@ const generateContent: SQSHandler = async (event: SQSEvent): Promise<SQSBatchRes
     return { batchItemFailures };
 };
 
-const selectContent = (postedContent: ContentPiece[], contentRequestFormat: string): ContentPieceCreateDto[] => {
+const selectContent = (existingAndPostedContent: ContentPiece[], contentRequestFormat: string): ContentPiece[] => {
     let limit = 10;
-    let sameFormatContent: ContentPieceCreateDto[] = [];
-    let differentFormatContent: ContentPieceCreateDto[] = [];
-    const selectedContent: ContentPieceCreateDto[] = [];
+    let sameFormatContent: ContentPiece[] = [];
+    let differentFormatContent: ContentPiece[] = [];
+    const selectedContent: ContentPiece[] = [];
 
-    for (const contentPiece of postedContent) {
-        const { format, content } = contentPiece;
+    for (const contentPiece of existingAndPostedContent) {
+        const { id, format, content } = contentPiece;
 
         if (format === contentRequestFormat) {
-            sameFormatContent.push({ format: contentRequestFormat, content });
+            sameFormatContent.push({ id, format: contentRequestFormat, content });
         } else {
-            differentFormatContent.push({ format, content });
+            differentFormatContent.push({ id, format, content });
         }
     }
 
@@ -132,26 +132,26 @@ const selectContent = (postedContent: ContentPiece[], contentRequestFormat: stri
 
 const createContentRequestPrompt = (
     brandSummary: string,
-    existingContent: ContentPieceCreateDto[],
+    contentExamples: ContentPiece[],
     contentRequest: ContentRequestCreateDto,
 ): string => {
-    let existingContentXml = "<existing_content>\n";
+    let contentExamplesXml = "<existing_content>\n";
 
-    if (existingContent.length === 0) {
-        existingContentXml += "[No existing content provided]\n";
+    if (contentExamples.length === 0) {
+        contentExamplesXml += "[No existing content provided]\n";
     }
 
-    for (const contentPiece of existingContent) {
+    for (const contentPiece of contentExamples) {
         const contentPieceXml =
             "<content_piece>\n" +
             `<format>${contentPiece.format}</format>\n` +
             `<content>\n${contentPiece.content}\n</content>\n` +
             "</content_piece>";
 
-        existingContentXml += contentPieceXml + "\n";
+        contentExamplesXml += contentPieceXml + "\n";
     }
 
-    existingContentXml += "</existing_content>";
+    contentExamplesXml += "</existing_content>";
 
     const prompt =
         "You are an experienced content creator specializing in social media content and personal branding. " +
@@ -160,7 +160,7 @@ const createContentRequestPrompt = (
         "First, review the following brand summary:\n" +
         `<brand_summary>\n${brandSummary}\n</brand_summary>\n\n` +
         "Next, examine the following existing content of the brand:\n" +
-        `${existingContentXml}\n\n` +
+        `${contentExamplesXml}\n\n` +
         "The ideas (and the content) must revolve around the context provided by the user:\n" +
         `<idea_context>${contentRequest.ideaContext}</idea_context>\n\n` +
         "The content must be written in a specific format:\n" +

@@ -47,6 +47,11 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
     const sqsService = SqsServiceProvider.getService();
     const awsEncryptionSdkService = AwsEncryptionSdkServiceProvider.getService();
 
+    const existingUserProfile = await dynamoDbService.getUserProfile({ userId: sub });
+    if (existingUserProfile) {
+        return errorResponse(event, 409, "The profile already exists.");
+    }
+
     const createUserProfilePromise = dynamoDbService.createUserProfile({
         userId: sub,
         fullName,

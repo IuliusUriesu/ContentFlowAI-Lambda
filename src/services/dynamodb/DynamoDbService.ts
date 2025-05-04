@@ -24,7 +24,7 @@ import {
     DynamoDbGetAllGeneratedContentByRequestInput,
     DynamoDbGetContentRequestInput,
     DynamoDbGetGeneratedContentPieceInput,
-    DynamoDbGetPostedContentInput,
+    DynamoDbGetAllPostedContentInput,
     DynamoDbGetUserProfileInput,
     DynamoDbUpdateBrandSummaryInput,
     DynamoDbUpdateIsContentRequestProcessedInput,
@@ -37,6 +37,9 @@ import {
     DynamoDbUserAnthropicApiKey,
     DynamoDbGetUserAnthropicApiKeyInput,
     DynamoDbUserAnthropicApiKeySchema,
+    DynamoDbExistingContentPiece,
+    DynamoDbGetAllExistingContentInput,
+    DynamoDbExistingContentPieceListSchema,
 } from "./types";
 import { UserProfile } from "../../models/domain/UserProfile";
 import { ContentPiece } from "../../models/domain/ContentPiece";
@@ -90,9 +93,9 @@ export class DynamoDbService {
 
         if (existingContent.length === 0) return [];
 
-        const existingContentItems: DynamoDbPostedContentPiece[] = existingContent.map((piece) => ({
-            PK: `u#${userId}#posted`,
-            SK: `f#${piece.format}#ec#${uuidv4()}`,
+        const existingContentItems: DynamoDbExistingContentPiece[] = existingContent.map((piece) => ({
+            PK: `u#${userId}#ec`,
+            SK: `ec#${piece.format}#${uuidv4()}`,
             content: piece.content,
         }));
 
@@ -110,10 +113,33 @@ export class DynamoDbService {
 
         try {
             await this.docClient.send(command);
-            return existingContentItems.map((item) => this.mapContentPiece(item));
+            return existingContentItems.map((item) => this.mapExistingContentPiece(item));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to create existing content pieces.");
+        }
+    };
+
+    getAllExistingContent = async (input: DynamoDbGetAllExistingContentInput): Promise<ContentPiece[]> => {
+        const { userId } = input;
+
+        const command = new QueryCommand({
+            TableName: this.appDataTableName,
+            KeyConditionExpression: "PK = :pk AND begins_with(SK, :skPrefix)",
+            ExpressionAttributeValues: {
+                ":pk": `u#${userId}#ec`,
+                ":skPrefix": "ec#",
+            },
+        });
+
+        try {
+            const response = await this.docClient.send(command);
+            if (!response.Items) return [];
+            const existingContent = DynamoDbExistingContentPieceListSchema.parse(response.Items);
+            return existingContent.map((ec) => this.mapExistingContentPiece(ec));
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to retrieve existing content.");
         }
     };
 
@@ -313,7 +339,7 @@ export class DynamoDbService {
         }
     };
 
-    getPostedContent = async (input: DynamoDbGetPostedContentInput): Promise<ContentPiece[]> => {
+    getAllPostedContent = async (input: DynamoDbGetAllPostedContentInput): Promise<ContentPiece[]> => {
         const { userId } = input;
 
         const command = new QueryCommand({
@@ -328,7 +354,7 @@ export class DynamoDbService {
             const response = await this.docClient.send(command);
             if (!response.Items) return [];
             const postedContent = DynamoDbPostedContentPieceListSchema.parse(response.Items);
-            return postedContent.map((pc) => this.mapContentPiece(pc));
+            return postedContent.map((pc) => this.mapPostedContentPiece(pc));
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to retrieve posted content.");
@@ -468,9 +494,17 @@ export class DynamoDbService {
         };
     };
 
-    private mapContentPiece = (piece: DynamoDbPostedContentPiece): ContentPiece => {
+    private mapExistingContentPiece = (piece: DynamoDbExistingContentPiece): ContentPiece => {
         return {
-            id: piece.SK.split("#")[3],
+            id: piece.SK.split("#")[2],
+            format: piece.SK.split("#")[1],
+            content: piece.content,
+        };
+    };
+
+    private mapPostedContentPiece = (piece: DynamoDbPostedContentPiece): ContentPiece => {
+        return {
+            id: piece.SK.split("#")[2],
             format: piece.SK.split("#")[1],
             content: piece.content,
         };

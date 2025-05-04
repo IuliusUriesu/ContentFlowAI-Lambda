@@ -16,6 +16,10 @@ export interface DynamoDbCreateExistingContentPiecesInput {
     existingContent: ContentPieceCreateDto[];
 }
 
+export interface DynamoDbGetAllExistingContentInput {
+    userId: string;
+}
+
 export interface DynamoDbUpdateBrandSummaryInput {
     userId: string;
     brandSummary: string;
@@ -54,7 +58,7 @@ export interface DynamoDbGetAllGeneratedContentByRequestInput {
     contentRequestId: string;
 }
 
-export interface DynamoDbGetPostedContentInput {
+export interface DynamoDbGetAllPostedContentInput {
     userId: string;
 }
 
@@ -94,9 +98,17 @@ export const DynamoDbUserProfileSchema = z.object({
     brandSummary: z.string().optional(),
 });
 
+export const DynamoDbExistingContentPieceSchema = z.object({
+    PK: z.string().startsWith("u#").endsWith("#ec"),
+    SK: z.string().startsWith("ec#"),
+    content: z.string(),
+});
+
+export const DynamoDbExistingContentPieceListSchema = z.array(DynamoDbExistingContentPieceSchema);
+
 export const DynamoDbPostedContentPieceSchema = z.object({
     PK: z.string().startsWith("u#").endsWith("#posted"),
-    SK: z.string().startsWith("f#"),
+    SK: z.string().startsWith("gc#"),
     content: z.string(),
 });
 
@@ -137,6 +149,8 @@ export const DynamoDbUserAnthropicApiKeySchema = z.object({
 });
 
 export type DynamoDbUserProfile = z.infer<typeof DynamoDbUserProfileSchema>;
+export type DynamoDbExistingContentPiece = z.infer<typeof DynamoDbExistingContentPieceSchema>;
+export type DynamoDbExistingContentPieceList = z.infer<typeof DynamoDbExistingContentPieceListSchema>;
 export type DynamoDbPostedContentPiece = z.infer<typeof DynamoDbPostedContentPieceSchema>;
 export type DynamoDbPostedContentPieceList = z.infer<typeof DynamoDbPostedContentPieceListSchema>;
 export type DynamoDbContentRequest = z.infer<typeof DynamoDbContentRequestSchema>;
