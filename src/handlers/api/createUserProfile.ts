@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { getEnvVariable } from "../../utils/utils";
+import { AnthropicApiError, getEnvVariable } from "../../utils/utils";
 import { errorResponse } from "../helpers/errorResponse";
 import { successResponse } from "../helpers/successResponse";
 import { CreateUserProfileBodySchema } from "../../models/api/CreateUserProfileBody";
@@ -8,6 +8,7 @@ import { ContentPieceCreateDto } from "../../models/dto/ContentPieceCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import SqsServiceProvider from "../../services/sqs";
 import AwsEncryptionSdkServiceProvider from "../../services/aws-encryption-sdk";
+import AnthropicApiServiceProvider from "../../services/anthropic-api";
 
 const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -49,7 +50,22 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
 
     const existingUserProfile = await dynamoDbService.getUserProfile({ userId: sub });
     if (existingUserProfile) {
-        return errorResponse(event, 409, "The profile already exists.");
+        return errorResponse(event, 409, "The profile has already been created.");
+    }
+
+    const anthropicApiService = await AnthropicApiServiceProvider.fromApiKey(anthropicApiKey);
+    try {
+        await anthropicApiService.getClaudeResponse({ prompt: "Hello!" });
+    } catch (error) {
+        if (error instanceof AnthropicApiError) {
+            if (error.status && error.status >= 400 && error.status < 500)
+                return errorResponse(event, error.status, error.message);
+            console.log(error);
+            return errorResponse(event, 500, "Internal server error");
+        } else {
+            console.log(error);
+            return errorResponse(event, 500, "Internal server error");
+        }
     }
 
     const createUserProfilePromise = dynamoDbService.createUserProfile({
@@ -65,7 +81,7 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
 
     try {
         const userProfile = await createUserProfilePromise;
-        const existingContentPieces = await createExistingContentPiecesPromise;
+        await createExistingContentPiecesPromise;
         const encryptedAnthropicApiKey = await awsEncryptionSdkService.encryptUserAnthropicApiKey(anthropicApiKey);
         await dynamoDbService.createUserAnthropicApiKey({ userId: sub, encryptedAnthropicApiKey });
 
@@ -75,12 +91,7 @@ const createUserProfile = async (event: APIGatewayProxyEvent): Promise<APIGatewa
             queueUrl: brandSummaryRequestQueueUrl,
         });
 
-        const responseBody = {
-            profile: userProfile,
-            existingContent: existingContentPieces,
-        };
-
-        return successResponse(event, 201, responseBody);
+        return successResponse(event, 201, userProfile);
     } catch (error) {
         console.log(error);
         return errorResponse(event, 500, "Internal server error");

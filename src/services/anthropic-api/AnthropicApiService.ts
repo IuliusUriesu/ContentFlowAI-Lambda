@@ -1,53 +1,48 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicApiGetClaudeResponseInput } from "./types";
+import { AnthropicApiErrorResponseSchema, AnthropicApiGetClaudeResponseInput } from "./types";
+import { AnthropicApiError } from "../../utils/utils";
 
 export class AnthropicApiService {
-    // private anthropicClientPromise: Promise<Anthropic>;
     private anthropic: Anthropic;
 
     constructor(apiKey: string) {
-        // this.anthropicClientPromise = this.createAnthropicClient();
         this.anthropic = new Anthropic({ apiKey });
     }
 
     getClaudeResponse = async (input: AnthropicApiGetClaudeResponseInput): Promise<string> => {
         const { prompt, thinking } = input;
 
-        const response = await this.anthropic.messages.create({
-            model: "claude-3-7-sonnet-20250219",
-            max_tokens: 20000,
-            thinking: thinking === true ? { type: "enabled", budget_tokens: 12000 } : undefined,
-            messages: [{ role: "user", content: prompt }],
-        });
+        try {
+            const response = await this.anthropic.messages.create({
+                model: "claude-3-7-sonnet-20250219",
+                max_tokens: 20000,
+                thinking: thinking === true ? { type: "enabled", budget_tokens: 12000 } : undefined,
+                messages: [{ role: "user", content: prompt }],
+            });
 
-        const textMessage = response.content.filter((content) => content.type === "text");
-        return textMessage[0].text;
+            const textMessage = response.content.filter((content) => content.type === "text");
+            return textMessage[0].text;
+        } catch (error) {
+            this.handleApiError(error);
+            throw new AnthropicApiError("Unable to talk with Claude.");
+        }
     };
 
-    // private createAnthropicClient = async (): Promise<Anthropic> => {
-    //     const apiKey = await this.getAnthropicApiKey();
-    //     return new Anthropic({
-    //         apiKey,
-    //     });
-    // };
-
-    // private getAnthropicApiKey = async (): Promise<string> => {
-    //     const client = new SecretsManagerClient();
-    //     const secretName = getEnvVariable("ANTHROPIC_API_KEY_SECRET_NAME");
-    //     const command = new GetSecretValueCommand({
-    //         SecretId: secretName,
-    //     });
-
-    //     const response = await client.send(command);
-    //     const secretJson = response.SecretString;
-    //     if (!secretJson) {
-    //         throw new DevelopmentError("Missing or invalid Anthropic API Key secret.");
-    //     }
-
-    //     const secretObject = JSON.parse(secretJson);
-    //     if (!secretObject.ANTHROPIC_API_KEY || typeof secretObject.ANTHROPIC_API_KEY !== "string") {
-    //         throw new DevelopmentError("Missing or invalid secret key ANTHROPIC_API_KEY.");
-    //     }
-    //     return secretObject.ANTHROPIC_API_KEY;
-    // };
+    private handleApiError = (error: unknown) => {
+        if (error instanceof Anthropic.APIError) {
+            const errorResponse = AnthropicApiErrorResponseSchema.safeParse(error.error);
+            if (errorResponse.success) {
+                const errorObj = errorResponse.data.error;
+                if (errorObj.type === "authentication_error") throw new AnthropicApiError("Invalid API key.", 401);
+                const status = typeof error.status === "number" ? error.status : undefined;
+                throw new AnthropicApiError(errorObj.message, status);
+            } else {
+                console.log(error);
+                throw new AnthropicApiError("Unable to talk with Claude.");
+            }
+        } else {
+            console.log(error);
+            throw new AnthropicApiError("Unable to talk with Claude.");
+        }
+    };
 }

@@ -6,7 +6,7 @@ import { CreateContentRequestBodySchema } from "../../models/api/CreateContentRe
 import { ContentRequestCreateDto } from "../../models/dto/ContentRequestCreateDto";
 import DynamoDbServiceProvider from "../../services/dynamodb";
 import SqsServiceProvider from "../../services/sqs";
-import createAnthropicApiService from "../../services/anthropic-api";
+import AnthropicApiServiceProvider from "../../services/anthropic-api";
 
 const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const sub = event.requestContext.authorizer?.claims.sub;
@@ -39,7 +39,7 @@ const createContentRequest = async (event: APIGatewayProxyEvent): Promise<APIGat
     const sqsService = SqsServiceProvider.getService();
 
     try {
-        const anthropicApiService = await createAnthropicApiService(sub);
+        const anthropicApiService = await AnthropicApiServiceProvider.fromUserId(sub);
         const conciseIdeaContextPrompt = createConciseIdeaContextPrompt(contentRequestDto.ideaContext);
         const claudeResponse = await anthropicApiService.getClaudeResponse({ prompt: conciseIdeaContextPrompt });
         const conciseIdeaContext = extractConciseIdeaContext(claudeResponse);

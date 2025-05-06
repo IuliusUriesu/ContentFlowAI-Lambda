@@ -18,6 +18,16 @@ export class DevelopmentError extends Error {}
 export class BadRequestError extends Error {}
 export class DynamoDbError extends Error {}
 export class SqsError extends Error {}
-export class AnthropicApiError extends Error {}
 export class AwsEncryptionSdkError extends Error {}
 export class LlmResponseParsingError extends Error {}
+
+export class AnthropicApiError extends Error {
+    public readonly status?: number;
+
+    constructor(message: string, status?: number) {
+        super(message);
+        this.status = status;
+
+        Object.setPrototypeOf(this, AnthropicApiError.prototype);
+    }
+}
