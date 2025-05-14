@@ -6,6 +6,7 @@ import getContentRequest from "./handlers/api/getContentRequest";
 import getAllGeneratedContent from "./handlers/api/getAllGeneratedContent";
 import getGeneratedContentPiece from "./handlers/api/getGeneratedContentPiece";
 import editGeneratedContentPiece from "./handlers/api/editGeneratedContentPiece";
+import editMarkedAsPosted from "./handlers/api/editMarkedAsPosted";
 import getUserProfile from "./handlers/api/getUserProfile";
 import writeBrandSummary from "./handlers/workers/writeBrandSummary";
 import generateContent from "./handlers/workers/generateContent";
@@ -19,6 +20,7 @@ exports.getContentRequest = getContentRequest;
 exports.getAllGeneratedContent = getAllGeneratedContent;
 exports.getGeneratedContentPiece = getGeneratedContentPiece;
 exports.editGeneratedContentPiece = editGeneratedContentPiece;
+exports.editMarkedAsPosted = editMarkedAsPosted;
 exports.getUserProfile = getUserProfile;
 
 // Worker Handlers

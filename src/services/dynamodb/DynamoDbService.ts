@@ -1,6 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
     BatchWriteCommand,
+    DeleteCommand,
     DynamoDBDocumentClient,
     GetCommand,
     PutCommand,
@@ -40,6 +41,7 @@ import {
     DynamoDbExistingContentPiece,
     DynamoDbGetAllExistingContentInput,
     DynamoDbExistingContentPieceListSchema,
+    DynamoDbUpdateGeneratedContentPieceMarkedAsPostedInput,
 } from "./types";
 import { UserProfile } from "../../models/domain/UserProfile";
 import { ContentPiece } from "../../models/domain/ContentPiece";
@@ -451,6 +453,65 @@ export class DynamoDbService {
         } catch (error) {
             console.log(error);
             throw new DynamoDbError("Failed to update generated content piece.");
+        }
+    };
+
+    updateGeneratedContentPieceMarkedAsPosted = async (
+        input: DynamoDbUpdateGeneratedContentPieceMarkedAsPostedInput,
+    ): Promise<GeneratedContentPiece> => {
+        const { userId, contentRequestId, generatedContentId, markedAsPosted } = input;
+
+        const updateCommand = new UpdateCommand({
+            TableName: this.appDataTableName,
+            Key: {
+                PK: `u#${userId}#cr#${contentRequestId}#gc`,
+                SK: `gc#${generatedContentId}`,
+            },
+            UpdateExpression: "SET markedAsPosted = :markedAsPosted",
+            ExpressionAttributeValues: {
+                ":markedAsPosted": markedAsPosted,
+            },
+            ReturnValues: "ALL_NEW",
+        });
+
+        let generatedContentPiece: GeneratedContentPiece;
+        try {
+            const response = await this.docClient.send(updateCommand);
+            const generatedContent = DynamoDbGeneratedContentPieceSchema.parse(response.Attributes);
+            generatedContentPiece = this.mapGeneratedContentPiece(generatedContent);
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to update content piece marked as posted status.");
+        }
+
+        try {
+            if (markedAsPosted) {
+                const command = new PutCommand({
+                    TableName: this.appDataTableName,
+                    Item: {
+                        PK: `u#${userId}#posted`,
+                        SK: `gc#${generatedContentPiece.format}#${generatedContentPiece.id}`,
+                        content: generatedContentPiece.content,
+                    },
+                });
+
+                await this.docClient.send(command);
+                return generatedContentPiece;
+            } else {
+                const command = new DeleteCommand({
+                    TableName: this.appDataTableName,
+                    Key: {
+                        PK: `u#${userId}#posted`,
+                        SK: `gc#${generatedContentPiece.format}#${generatedContentPiece.id}`,
+                    },
+                });
+
+                await this.docClient.send(command);
+                return generatedContentPiece;
+            }
+        } catch (error) {
+            console.log(error);
+            throw new DynamoDbError("Failed to update content piece marked as posted status.");
         }
     };
 

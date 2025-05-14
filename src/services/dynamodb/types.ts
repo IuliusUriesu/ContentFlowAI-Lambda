@@ -80,6 +80,13 @@ export interface DynamoDbUpdateGeneratedContentPieceContentInput {
     content: string;
 }
 
+export interface DynamoDbUpdateGeneratedContentPieceMarkedAsPostedInput {
+    userId: string;
+    contentRequestId: string;
+    generatedContentId: string;
+    markedAsPosted: boolean;
+}
+
 export interface DynamoDbUpdateIsContentRequestProcessedInput {
     userId: string;
     contentRequestId: string;
